@@ -2,8 +2,7 @@ const dotenv = require('dotenv');
 const axios = require('axios');
 const sqlite3 = require('sqlite3');
 const { CronJob } = require('cron');
-const { BskyAgent } = require('@atproto/api');
-
+const { BskyAgent, RichText } = require('@atproto/api');
 
 // Load environment variables
 dotenv.config();
@@ -67,7 +66,7 @@ function toDegrees(radians: number): number {
     return radians * (180 / Math.PI);
 }
 
-// Calculate bearing between two geographic points
+// Helper: Calculate bearing between two geographic points
 function computeBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const dLon = toRadians(lon2 - lon1);
     const y = Math.sin(dLon) * Math.cos(toRadians(lat2));
@@ -79,7 +78,23 @@ function computeBearing(lat1: number, lon1: number, lat2: number, lon2: number):
     return (bearing + 360) % 360; // Normalize to 0–360
 }
 
-// Detect if an aircraft is circling
+// Helper: Calculate the centroid (center) of a set of coordinates
+function calculateCentroid(coords: { lat: number; lon: number }[]): { lat: number; lon: number } {
+    let totalLat = 0;
+    let totalLon = 0;
+
+    coords.forEach(coord => {
+        totalLat += coord.lat;
+        totalLon += coord.lon;
+    });
+
+    const centroidLat = totalLat / coords.length;
+    const centroidLon = totalLon / coords.length;
+
+    return { lat: centroidLat, lon: centroidLon };
+}
+
+// Main logic to detect if an aircraft is circling
 function isCircling(coords: { lat: number; lon: number }[]): boolean {
     if (coords.length < 2) return false;
 
@@ -102,7 +117,7 @@ function isCircling(coords: { lat: number; lon: number }[]): boolean {
     return Math.abs(totalChange) >= TOTAL_CHANGE;
 }
 
-// Insert flight data into the database
+// Insert flight data into the database to calculate "circle-ness"
 function insertFlightData(
     hex: string,
     timestamp: number,
@@ -140,13 +155,53 @@ function getRecentCoordinates(hex: string, cutoff: number): Promise<{ lat: numbe
 
 
 
-// Post to Bluesky (mock function, replace with API logic)
+// Post to Bluesky
 async function postToBluesky(message: string): Promise<void> {
+    //TODO: use puppeteer to get a screenshot
+    //TODO: get photo from airportdata if available
+    //TODO: call pelias API to get reverse geocode results
+
+
+    /* how to embed images
+
+        const image = 'data:image/png;base64,...'
+        const { data } = await agent.uploadBlob(convertDataURIToUint8Array(image), {
+        encoding,
+        })
+
+    //  Add this to the post object
+    
+      embed: {
+    $type: 'app.bsky.embed.images',
+    images: [
+      // can be an array up to 4 values
+      {
+        alt: 'My cat mittens', // the alt text
+        image: data.blob,
+        aspectRatio: {
+          // a hint to clients
+          width: 1000,
+          height: 500
+        }
+    }],
+    */
+
+
+   const rt = new RichText({
+        text: message,
+    });
+
+    await rt.detectFacets(agent) // automatically detects mentions and links
+
+    const postRecord = {
+        $type: 'app.bsky.feed.post',
+        langs: ["en-US"],
+        text: rt.text,
+        facets: rt.facets,
+        createdAt: new Date().toISOString(),
+    }
     console.log('Posting to Bluesky:', message);
-    agent.post({
-        text: 'message',
-        createdAt: new Date().toISOString()
-      });
+    agent.post(postRecord);
 }
 
 // Prune old records from the database
@@ -181,8 +236,10 @@ async function detectCirclingAircraft(): Promise<void> {
             found++;
             const recentCoords = await getRecentCoordinates(hex, cutoff);
             if (isCircling(recentCoords)) {
+                const centroid = calculateCentroid(recentCoords);
+                
                 const link = `${TAR1090_URL}?icao=${hex}`;
-                const message = `Detected circling aircraft!\nHex: ${hex}\nFlight: ${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nView more: ${link}`;
+                const message = `Detected circling aircraft!\nHex: ${hex}\nFlight: ${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nCentroid: Lat ${centroid.lat.toFixed(4)}, Lon ${centroid.lon.toFixed(4)}\nView more: ${link}`;
                 await postToBluesky(message);
             }
         }
