@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@atproto/api": "^0.13.18",
     "axios": "^1.7.8",
     "cron": "^3.2.1",
     "dotenv": "^16.4.5",

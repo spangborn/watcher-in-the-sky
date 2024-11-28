@@ -2,6 +2,7 @@ const dotenv = require('dotenv');
 const axios = require('axios');
 const sqlite3 = require('sqlite3');
 const { CronJob } = require('cron');
+const { BskyAgent } = require('@atproto/api');
 
 
 // Load environment variables
@@ -32,6 +33,16 @@ db.serialize(() => {
             PRIMARY KEY (hex, timestamp)
         );
     `);
+});
+
+
+// BlueSky login
+const agent = new BskyAgent({
+    service: 'https://bsky.social'
+});
+agent.login({
+    identifier: BLUESKY_USERNAME,
+    password: BLUESKY_PASSWORD
 });
 
 // Helper function to fetch aircraft data
@@ -132,7 +143,10 @@ function getRecentCoordinates(hex: string, cutoff: number): Promise<{ lat: numbe
 // Post to Bluesky (mock function, replace with API logic)
 async function postToBluesky(message: string): Promise<void> {
     console.log('Posting to Bluesky:', message);
-    // Add actual API logic here
+    agent.post({
+        text: 'message',
+        createdAt: new Date().toISOString()
+      });
 }
 
 // Prune old records from the database
@@ -189,3 +203,5 @@ pruningJob.start();
     console.log('Running initial detection...');
     await detectCirclingAircraft();
 })();
+
+export { };
