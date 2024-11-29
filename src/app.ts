@@ -13,6 +13,7 @@ const TIME_WINDOW = parseInt(process.env.TIME_WINDOW || '300000'); // Default 5 
 const PRUNE_TIME = parseInt(process.env.PRUNE_TIME || '1200000'); // Default 20 minutes in milliseconds
 const TAR1090_DATA_URL = process.env.TAR1090_DATA_URL || '';
 const TAR1090_URL = process.env.TAR1090_URL || '';
+const PELIAS_INSTANCE = process.env.PELIAS_INSTANCE || '';
 const BLUESKY_USERNAME = process.env.BLUESKY_USERNAME || '';
 const BLUESKY_PASSWORD = process.env.BLUESKY_PASSWORD || '';
 
@@ -236,7 +237,7 @@ async function detectCirclingAircraft(): Promise<void> {
             found++;
             const recentCoords = await getRecentCoordinates(hex, cutoff);
             if (isCircling(recentCoords)) {
-                const centroid = calculateCentroid(recentCoords);
+                const centroid = calculateCentroid(recentCoords); // Use this to ask Pelias what is there
                 
                 const link = `${TAR1090_URL}?icao=${hex}`;
                 const message = `Detected circling aircraft!\nHex: ${hex}\nFlight: ${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nCentroid: Lat ${centroid.lat.toFixed(4)}, Lon ${centroid.lon.toFixed(4)}\nView more: ${link}`;
