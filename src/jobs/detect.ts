@@ -47,7 +47,7 @@ export async function detectCirclingAircraft(): Promise<void> {
                 console.log(reverseResult);
                 
 
-                const link = `${TAR1090_URL}?icao=${hex}&zoom=14`;
+                const link = `${TAR1090_URL}?icao=${hex}&zoom=14&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}`;
                 const message = `Detected circling aircraft!\nHex: #${hex}\nFlight: #${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nCentroid: Lat ${centroid.lat.toFixed(4)}, Lon ${centroid.lon.toFixed(4)}\nView more: ${link}`;
                 await postToBluesky(message);
 

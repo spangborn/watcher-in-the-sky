@@ -1,0 +1,13 @@
+version: '3.7'
+
+services:
+  watcher-in-the-sky:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    volumes:
+      - ./src:/home/node/app/src
+      - ./nodemon.json:/home/node/app/nodemon.json
+    container_name: watcher-in-the-sky
+    command: npm run dev
