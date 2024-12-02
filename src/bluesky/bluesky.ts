@@ -16,7 +16,7 @@ export async function postToBluesky(aircraft: any, message: string, screenshot_d
 
 
     // If we have a screenshot, upload it and post it with the BSky Post
-    if (screenshot_data) {
+    if (screenshot_data && screenshot_data.length > 0) {
         const { data } = await agent.uploadBlob(screenshot_data, {
             encoding: "image/jpg",
         });
