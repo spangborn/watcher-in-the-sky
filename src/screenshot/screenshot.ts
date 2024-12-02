@@ -16,7 +16,7 @@ export async function captureScreenshot(hex:string, url: string): Promise<Uint8A
     // Capture screenshot
     return page.screenshot({
         clip: {
-          x: 300,
+          x: 200,
           y: 0,
           width: 1200,
           height: 800

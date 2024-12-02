@@ -62,7 +62,7 @@ export async function detectCirclingAircraft(): Promise<void> {
                     console.log("Error atempting to reverse geocode: ", err);
                 }
                 
-                const link = `${TAR1090_URL}?icao=${hex}&zoom=13.5&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}`;
+                const link = `${TAR1090_URL}?icao=${hex}&zoom=13&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}`;
                 const screenshotUrl = `${link}&hideButtons&hideSidebar`;
 
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
