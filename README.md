@@ -15,3 +15,6 @@ The name "Watcher in the Sky" is inspired by the band Ghost.
 
 ## WIP
 This code is very much a work in progress and will be refined as I work on it.
+
+## Example
+This code is periodically running and posts to the BSky account [@skycircles.bsky.social](https://app.bsky.social/@skycircles.bsky.social). I can be found on BSky as [@sawyer.bike](https://app.bsky.social/@sawyer.bike).
