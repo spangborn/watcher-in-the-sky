@@ -7,7 +7,7 @@ export async function loginToBluesky(): Promise<void> {
     await agent.login({ identifier: BLUESKY_USERNAME, password: BLUESKY_PASSWORD });
 }
 
-export async function postToBluesky(message: string, screenshot_data?: Uint8Array): Promise<void> {
+export async function postToBluesky(aircraft: any, message: string, screenshot_data?: Uint8Array): Promise<void> {
     await loginToBluesky();
 
 
@@ -29,7 +29,7 @@ export async function postToBluesky(message: string, screenshot_data?: Uint8Arra
             embed: {
                 $type: 'app.bsky.embed.images',
                 images: [{
-                    alt: `Screenshot of the flight path.`,
+                    alt: `Screenshot of the flight path of the flight ${aircraft.flight}`,
                     image: data.blob
                 }]
             }

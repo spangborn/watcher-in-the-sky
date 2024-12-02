@@ -37,18 +37,25 @@ export async function detectCirclingAircraft(): Promise<void> {
     for (const ac of aircraftData) {
         const { hex, flight, alt_baro, lat, lon } = ac;
         if (hex && lat !== undefined && lon !== undefined && alt_baro !== "ground") {
+            
+            // Save the flight data in the database for a later check
             insertFlightData(hex, now, flight, alt_baro, lat, lon);
+
             found++;
+
+            // Retrieve the data from the database
             const recentCoords = await getRecentCoordinates(hex, cutoff);
+
+            // If the data looks like a circling flight
             if (await isCircling(recentCoords)) {
                 const centroid = calculateCentroid(recentCoords); // Use this to ask Pelias what is there
 
-
+                // TODO: Move this out into a method that takes the data and generates the message based on what information it has available
                 let description;
                 try {
-                    const reverseResult = await reverse(lat,lon, {});
+                    const reverseResult = await reverse(lat,lon, {}); // The call to Pelias
                     if (reverseResult && reverseResult.features.length > 0) {
-                        description = `near ${reverseResult.features[0].properties.label}`
+                        description = `${reverseResult.features[0].properties.label}`
                     }
                 }
                 catch (err) {
@@ -59,8 +66,8 @@ export async function detectCirclingAircraft(): Promise<void> {
                 const screenshotUrl = `${link}&hideButtons&hideSidebar`;
 
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
-                const message = `Detected circling aircraft!\nHex: #${hex}\nFlight: #${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear:${description || 'Unknown'}\nView more: ${link}`;
-                await postToBluesky(message, screenshot_data);
+                const message = `Detected circling aircraft!\nHex: #${hex}\nFlight: #${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear: ${description || 'Unknown'}\nView more: ${link}`;
+                await postToBluesky(ac, message, screenshot_data);
 
                 await clearAircraft(hex);
             }
