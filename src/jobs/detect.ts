@@ -4,6 +4,7 @@ import { calculateCentroid, computeBearing } from '../helpers/coordinateUtils';
 import { reverse } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
 import { TAR1090_URL, TOTAL_CHANGE, TIME_WINDOW } from '../constants';
+import { captureScreenshot } from '../screenshot/screenshot';
 
 export async function isCircling(coords: { lat: number; lon: number }[]): Promise<boolean> {
     if (coords.length < 2) return false;
@@ -43,13 +44,23 @@ export async function detectCirclingAircraft(): Promise<void> {
                 const centroid = calculateCentroid(recentCoords); // Use this to ask Pelias what is there
 
 
-                const reverseResult = await reverse(lat,lon, {});
-                console.log(reverseResult);
+                let description;
+                try {
+                    const reverseResult = await reverse(lat,lon, {});
+                    if (reverseResult && reverseResult.features.length > 0) {
+                        description = `near ${reverseResult.features[0].properties.label}`
+                    }
+                }
+                catch (err) {
+                    console.log("Error atempting to reverse geocode: ", err);
+                }
                 
+                const link = `${TAR1090_URL}?icao=${hex}&zoom=13.5&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}`;
+                const screenshotUrl = `${link}&hideButtons&hideSidebar`;
 
-                const link = `${TAR1090_URL}?icao=${hex}&zoom=14&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}`;
-                const message = `Detected circling aircraft!\nHex: #${hex}\nFlight: #${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nCentroid: Lat ${centroid.lat.toFixed(4)}, Lon ${centroid.lon.toFixed(4)}\nView more: ${link}`;
-                await postToBluesky(message);
+                const screenshot_data = await captureScreenshot(hex, screenshotUrl);
+                const message = `Detected circling aircraft!\nHex: #${hex}\nFlight: #${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear:${description || 'Unknown'}\nView more: ${link}`;
+                await postToBluesky(message, screenshot_data);
 
                 await clearAircraft(hex);
             }
