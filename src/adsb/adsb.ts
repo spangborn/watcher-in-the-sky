@@ -1,5 +1,11 @@
 import axios from 'axios';
 import { TAR1090_DATA_URL, USER_AGENT } from '../constants';
+import { setupCache } from 'axios-cache-interceptor';
+
+const axiosCache = setupCache(axios, {
+    debug: console.log,
+    ttl: 450000
+});
 
 export async function fetchAircraftData(): Promise<any[]> {
     const headers = {
@@ -7,8 +13,9 @@ export async function fetchAircraftData(): Promise<any[]> {
           `watcher-in-the-sky ${USER_AGENT || 'Watcher'}`,
       };
     try {
-        console.log(`Getting data from: ${TAR1090_DATA_URL}`);
-        const response = await axios.get(TAR1090_DATA_URL);
+        
+        const response = await axiosCache.get(TAR1090_DATA_URL);
+        console.log(`Got ${response.cached ? 'cached' : 'fresh'} data from: ${TAR1090_DATA_URL}`);
         return response.data.ac || [];
     } catch (error: any) {
         console.error('Error fetching aircraft data:', error.message);
