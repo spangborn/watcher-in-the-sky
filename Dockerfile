@@ -4,7 +4,7 @@ FROM node:21.6.1 as base
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
 
 # Install necessary dependencies for Puppeteer and Chromium
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
   fonts-liberation \
   libasound2 \
   libatk-bridge2.0-0 \
@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libxshmfence1 \
   libglu1-mesa \
   chromium \
+  chromium-sandbox \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -44,3 +45,6 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
 
 RUN npm run build
+
+# Attempting to see if puppeteer works now
+RUN npm run test
