@@ -1,5 +1,10 @@
 import puppeteer from 'puppeteer';
 
+function delay(time: number) {
+    return new Promise(function(resolve) { 
+        setTimeout(resolve, time)
+    });
+ }
 
 export async function captureScreenshot(hex:string, url: string): Promise<Uint8Array> {
     try {
@@ -15,6 +20,8 @@ export async function captureScreenshot(hex:string, url: string): Promise<Uint8A
         await page.setViewport({ width: 1600, height: 800 });
 
         await page.goto(url, { waitUntil: 'networkidle0' });
+
+        await delay(4000);
 
         // Capture screenshot
         return page.screenshot({
