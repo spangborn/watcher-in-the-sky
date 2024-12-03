@@ -4,7 +4,9 @@ import puppeteer from 'puppeteer';
 export async function captureScreenshot(hex:string, url: string): Promise<Uint8Array> {
     try {
         // Create a browser instance
-        const browser = await puppeteer.launch();
+        const browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-gpu', '--disable-setuid-sandbox']
+        });
 
         // Create a new page
         const page = await browser.newPage();
