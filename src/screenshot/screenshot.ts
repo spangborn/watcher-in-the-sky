@@ -21,7 +21,7 @@ export async function captureScreenshot(hex:string, url: string): Promise<Uint8A
 
         await page.goto(url, { waitUntil: 'networkidle0' });
 
-        await delay(10000);
+        await delay(15000);
 
         // Capture screenshot
         return page.screenshot({
