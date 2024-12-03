@@ -9,4 +9,6 @@ const screenshot = require("./screenshot/screenshot");
     catch (err) {
         console.log("Error getting screenshot:", err);
     }
+    // Make sure the build doesn't get hung
+    return process.exit(1);
 })();
