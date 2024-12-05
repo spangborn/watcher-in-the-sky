@@ -4,7 +4,12 @@ import { BLUESKY_USERNAME, BLUESKY_PASSWORD } from '../constants';
 const agent = new AtpAgent({ service: 'https://bsky.social' });
 
 export async function loginToBluesky(): Promise<void> {
-    await agent.login({ identifier: BLUESKY_USERNAME, password: BLUESKY_PASSWORD });
+    try {
+        await agent.login({ identifier: BLUESKY_USERNAME, password: BLUESKY_PASSWORD });
+    }
+    catch (err) {
+        console.log("Error logging into Bluesky: ", err);
+    }
 }
 
 export async function postToBluesky(aircraft: any, message: string, screenshot_data?: Uint8Array): Promise<void> {
@@ -52,7 +57,7 @@ export async function postToBluesky(aircraft: any, message: string, screenshot_d
 
         }
     }
-    catch (err) { 
+    catch (err) {
         console.log("Error posting to Bsky", err);
 
     }
