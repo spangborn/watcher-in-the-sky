@@ -37,7 +37,12 @@ export async function postToBluesky(aircraft: any, message: string, screenshot_d
                     $type: 'app.bsky.embed.images',
                     images: [{
                         alt: `Screenshot of the flight path of the flight ${aircraft.flight}`,
-                        image: data.blob
+                        image: data.blob,
+                        aspectRatio: {
+                            // a hint to clients
+                            width: 1200,
+                            height: 800
+                          }
                     }]
                 }
             };
