@@ -8,12 +8,15 @@ const puppeteer = require('puppeteer');
      }
      
     console.log("Attempting screenshot");
+    
+    // Create a browser instance
+    const browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-gpu', '--disable-setuid-sandbox'],
+        headless: true
+    });
     try {
-        // Create a browser instance
-        const browser = await puppeteer.launch({
-            args: ['--no-sandbox', '--disable-gpu', '--disable-setuid-sandbox'],
-            headless: false
-        });
+
+
 
         // Create a new page
         const page = await browser.newPage();
@@ -24,22 +27,27 @@ const puppeteer = require('puppeteer');
         await page.goto("https://globe.airplanes.live/?icao=ae0dbf&zoom=13&", { waitUntil: 'networkidle0' });
 
         // Sigh, wait 4 seconds
-        await delay(4000);
+        //await delay(4000);
 
         // Capture screenshot
-        return page.screenshot({
+        let screenshotData = await page.screenshot({
             clip: {
-                x: 200,
-                y: 0,
-                width: 1200,
-                height: 800
+            x: 200,
+            y: 0,
+            width: 1200,
+            height: 800
             },
             quality: 100, type: 'jpeg'
         });
+        
+        return screenshotData;
     }
     catch (err) {
         console.log("Encountered an error while trying to screenshot: ", err);
         return new Uint8Array();
+    }
+    finally {
+        await browser.close();
     }
 
     // Make sure the build doesn't get hung
