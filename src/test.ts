@@ -16,8 +16,6 @@ const puppeteer = require('puppeteer');
     });
     try {
 
-
-
         // Create a new page
         const page = await browser.newPage();
 
