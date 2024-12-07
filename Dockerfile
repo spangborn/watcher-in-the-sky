@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
   libnss3 \
   chromium \
   chromium-sandbox \
+  chromium-common \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
