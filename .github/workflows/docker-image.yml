@@ -15,4 +15,5 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      run: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --tag watcher-in-the-sky:$(date +%s)
+      #run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
