@@ -4,7 +4,8 @@ import { setupCache } from 'axios-cache-interceptor';
 
 const axiosCache = setupCache(axios, {
     debug: console.log,
-    ttl: 450000
+    ttl: 30000,
+    interpretHeader: false // ignore cache-control headers from the service
 });
 
 export async function fetchAircraftData(): Promise<any[]> {
@@ -15,7 +16,7 @@ export async function fetchAircraftData(): Promise<any[]> {
     try {
         
         const response = await axiosCache.get(TAR1090_DATA_URL);
-        console.log(`Got ${response.cached ? 'cached' : 'fresh'} data from: ${TAR1090_DATA_URL}`);
+        console.log(`Got ${response.cached ? 'cached' : 'fresh'} data from: ${TAR1090_DATA_URL}.`);
         return response.data.ac || [];
     } catch (error: any) {
         console.error('Error fetching aircraft data:', error.message);

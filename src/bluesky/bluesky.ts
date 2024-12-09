@@ -17,11 +17,15 @@ export async function postToBluesky(aircraft: any, message: string, screenshot_d
         console.log("Debug mode, not posting this message: ", message);
         return;
     }
-
-    if (agent.session == null) {
-        console.log("BSky session was null:", agent);
+    //agent.sessionManager.hasSession
+    if (!agent.sessionManager.hasSession) {
+        console.log("BSky session was null:", agent.session);
         await loginToBluesky();
     }
+    else {
+        console.log("Using existing BSky session: ", agent.session);
+    }
+
 
     const rt = new RichText({ text: message });
     await rt.detectFacets(agent);
