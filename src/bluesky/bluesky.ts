@@ -1,5 +1,5 @@
 import { AtpAgent, RichText } from '@atproto/api';
-import { BLUESKY_USERNAME, BLUESKY_PASSWORD } from '../constants';
+import { BLUESKY_USERNAME, BLUESKY_PASSWORD, BLUESKY_DEBUG } from '../constants';
 
 const agent = new AtpAgent({ service: 'https://bsky.social' });
 
@@ -13,9 +13,15 @@ export async function loginToBluesky(): Promise<void> {
 }
 
 export async function postToBluesky(aircraft: any, message: string, screenshot_data?: Uint8Array): Promise<void> {
-    await loginToBluesky();
+    if (BLUESKY_DEBUG) {
+        console.log("Debug mode, not posting this message: ", message);
+    }
 
-
+    if (agent.session == null) {
+        console.log("BSky session was null:", agent);
+        await loginToBluesky();
+    }
+    
     const rt = new RichText({ text: message });
     await rt.detectFacets(agent);
 

@@ -1,3 +1,5 @@
+const { postToBluesky } = require("./bluesky/bluesky");
+
 const puppeteer = require('puppeteer');
 
 (async () => {
@@ -46,8 +48,8 @@ const puppeteer = require('puppeteer');
     }
     finally {
         await browser.close();
+        
+        // Make sure the build doesn't get hung
+        return process.exit(0);
     }
-
-    // Make sure the build doesn't get hung
-    return process.exit(0);
 })();

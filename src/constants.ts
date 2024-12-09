@@ -10,4 +10,5 @@ export const TAR1090_URL = process.env.TAR1090_URL || '';
 export const PELIAS_INSTANCE = process.env.PELIAS_INSTANCE || '';
 export const BLUESKY_USERNAME = process.env.BLUESKY_USERNAME || '';
 export const BLUESKY_PASSWORD = process.env.BLUESKY_PASSWORD || '';
+export const BLUESKY_DEBUG = Boolean(process.env.BLUESKY_DEBUG || "false");
 export const USER_AGENT = process.env.USER_AGENT || 'Watcher in the Sky';
