@@ -3,5 +3,5 @@ version: '3.7'
 services:
   watcher:
     build:
-      target: base
+      target: production
     command: npm run start
