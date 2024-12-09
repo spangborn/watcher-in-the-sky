@@ -19,11 +19,11 @@ export async function postToBluesky(aircraft: any, message: string, screenshot_d
     }
     //agent.sessionManager.hasSession
     if (!agent.sessionManager.hasSession) {
-        console.log("BSky session was null:", agent.session);
+        //console.log("BSky session was null:", agent.session);
         await loginToBluesky();
     }
     else {
-        console.log("Using existing BSky session: ", agent.session);
+        //console.log("Using existing BSky session: ", agent.session);
     }
 
 

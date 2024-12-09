@@ -10,6 +10,6 @@ services:
       - ./src:/home/node/app/src
       - ./nodemon.json:/home/node/app/nodemon.json
     container_name: watcher-in-the-sky
-    command: npm run start
+    command: npm run dev
     env_file:
       - .env
