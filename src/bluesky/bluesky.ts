@@ -13,15 +13,16 @@ export async function loginToBluesky(): Promise<void> {
 }
 
 export async function postToBluesky(aircraft: any, message: string, screenshot_data?: Uint8Array): Promise<void> {
-    if (BLUESKY_DEBUG) {
+    if (!BLUESKY_DEBUG) {
         console.log("Debug mode, not posting this message: ", message);
+        return;
     }
 
     if (agent.session == null) {
         console.log("BSky session was null:", agent);
         await loginToBluesky();
     }
-    
+
     const rt = new RichText({ text: message });
     await rt.detectFacets(agent);
 
