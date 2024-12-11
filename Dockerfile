@@ -1,7 +1,8 @@
-FROM --platform=linux/amd64 node:21.6.1 as base
+FROM --platform=linux/arm64 node:22 as base
 
 # We don't need the standalone Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
+ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
 
 # Install necessary dependencies for Puppeteer and Chromium
 RUN apt-get update && apt-get install -y \
