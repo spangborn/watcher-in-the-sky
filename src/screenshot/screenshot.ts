@@ -9,7 +9,7 @@ function delay(time: number) {
 export async function captureScreenshot(hex: string, url: string): Promise<Uint8Array> {
 // Create a browser instance
     let browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-gpu', '--disable-setuid-sandbox'],
+        args: ['--no-sandbox', '--window-size=1920,1080', '--ignore-certificate-errors', '--ignore-certificate-errors-spki-list', '--disable-dev-shm-usage'],
         defaultViewport: {
             width: 1600,
             height: 800,
@@ -21,6 +21,7 @@ export async function captureScreenshot(hex: string, url: string): Promise<Uint8
         // Create a new page
         const page = await browser.newPage();
 
+        page.setDefaultNavigationTimeout(0);
         await page.goto(url, { waitUntil: 'networkidle2' });
 
         await delay(4000);
