@@ -35,7 +35,7 @@ export async function detectCirclingAircraft(): Promise<void> {
 
     let found = 0;
     for (const ac of aircraftData) {
-        const { hex, flight, alt_baro, lat, lon } = ac;
+        const { hex, flight, r, alt_baro, lat, lon } = ac;
         if (hex && lat !== undefined && lon !== undefined && alt_baro !== "ground") {
             
             // Save the flight data in the database for a later check
@@ -59,17 +59,27 @@ export async function detectCirclingAircraft(): Promise<void> {
                     }
                 }
                 catch (err) {
-                    console.log("Error atempting to reverse geocode: ", err);
+                    console.log("Error attempting to reverse geocode: ", err);
                 }
+            
+                const urlParams = {
+                    "icao": `${hex}`,
+                    "zoom": `13`,
+                    "lat": `${centroid.lat.toFixed(4)}`,
+                    "lon": `${centroid.lon.toFixed(4)}`
+                };
                 
-                const link = `${TAR1090_URL}?icao=${hex}&zoom=13&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}`;
-                const screenshotUrl = `${link}&hideButtons&hideSidebar`;
+                const built = new URLSearchParams(urlParams);
+                const link = `${TAR1090_URL}?${built}`;
+                const screenshotUrl = `${link}&hideButtons&hideSidebar&screenshot`;
 
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
                 const message = `Detected circling aircraft!\nHex: #${hex}\nFlight: #${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear: ${description || 'Unknown'}\nView more: ${link}`;
-                await postToBluesky(ac, message, screenshot_data);
+                const success = await postToBluesky(ac, message, screenshot_data);
 
-                await clearAircraft(hex);
+                if (success) {
+                    await clearAircraft(hex);
+                }
             }
         }
     }

@@ -12,26 +12,19 @@ export async function loginToBluesky(): Promise<void> {
     }
 }
 
-export async function postToBluesky(aircraft: any, message: string, screenshot_data?: Uint8Array): Promise<void> {
+export async function postToBluesky(aircraft: any, message: string, screenshot_data?: Uint8Array): Promise<boolean> {
     if (!BLUESKY_DEBUG) {
         console.log("Debug mode, not posting this message: ", message);
-        return;
+        return true;
     }
-    //agent.sessionManager.hasSession
     if (!agent.sessionManager.hasSession) {
-        //console.log("BSky session was null:", agent.session);
         await loginToBluesky();
     }
-    else {
-        //console.log("Using existing BSky session: ", agent.session);
-    }
-
 
     const rt = new RichText({ text: message });
     await rt.detectFacets(agent);
 
     try {
-
 
         // If we have a screenshot, upload it and post it with the BSky Post
         if (screenshot_data && screenshot_data.length > 0) {
@@ -58,23 +51,16 @@ export async function postToBluesky(aircraft: any, message: string, screenshot_d
                 }
             };
             await agent.post(postRecord);
+            return true;
 
         }
-        // Otherwise just post the text
         else {
-            const postRecord = {
-                $type: 'app.bsky.feed.post',
-                langs: ["en-US"],
-                text: rt.text,
-                facets: rt.facets,
-                createdAt: new Date().toISOString(),
-            };
-            await agent.post(postRecord);
-
+            return false;
         }
     }
     catch (err) {
         console.log("Error posting to Bsky", err);
+        return false;
 
     }
 }
