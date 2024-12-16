@@ -6,7 +6,7 @@ import { postToBluesky } from "../bluesky/bluesky";
 
 export async function detectAircraftFromList(): Promise<void> {
     const aircraftData = await fetchAircraftData();
-    const watchlist = ["N352HP", "N354HP"];
+    const watchlist = ["N352HP", "N353HP", "N354HP"];
     
     console.log("Checking for aircraft on watchlist...");
     for (const aircraft of aircraftData) {
