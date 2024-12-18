@@ -16,7 +16,7 @@ export async function detectAircraftFromList(): Promise<void> {
             console.log(`Found ${flight} on the watchlist`);
 
             const link = `${TAR1090_URL}?icao=${hex}&zoom=13&lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`;
-            const screenshotUrl = `${link}&hideButtons&hideSidebar`;
+            const screenshotUrl = `${link}&hideButtons&hideSidebar&screenshot`;
 
             const screenshot_data = await captureScreenshot(hex, screenshotUrl);
             const message = `${'#' + flight} was detected in the air. \nView more: ${link}`;
