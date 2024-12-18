@@ -29,4 +29,4 @@ This code is very much a work in progress and will be refined as I work on it.
 4. Create configuration of watched aircraft list for specific tail numbers or icao
 
 ## Example
-This code is periodically running and posts to the BSky account [@skycircles.bsky.social](https://bsky.app/profile/skycirclesslc.bsky.social). I can be found on BSky as [@sawyer.bike](https://bsky.app/profile/sawyer.bike).
+This code is periodically running and posts to the BSky account [@skycirclesslc.bsky.social](https://bsky.app/profile/skycirclesslc.bsky.social). I can be found on BSky as [@sawyer.bike](https://bsky.app/profile/sawyer.bike).
