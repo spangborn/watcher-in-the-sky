@@ -60,7 +60,7 @@ export async function detectCirclingAircraft(): Promise<void> {
                 // TODO: Move this out into a method that takes the data and generates the message based on what information it has available
                 let description;
                 try {
-                    const reverseResult = await reverse(lat,lon, {}); // The call to Pelias
+                    const reverseResult = await reverse(centroid.lat,centroid.lon, {}); // The call to Pelias
                     if (reverseResult && reverseResult.features.length > 0) {
                         description = `${reverseResult.features[0].properties.label}`
                     }
