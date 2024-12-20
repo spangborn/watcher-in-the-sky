@@ -12,7 +12,7 @@ db.serialize(() => {
         CREATE TABLE IF NOT EXISTS aircraft_data (
             hex TEXT NOT NULL,
             timestamp INTEGER NOT NULL,
-            flight TEXT,
+            r TEXT,
             alt_baro REAL,
             lat REAL,
             lon REAL,
@@ -24,14 +24,14 @@ db.serialize(() => {
 export function insertFlightData(
     hex: string,
     timestamp: number,
-    flight: string | null,
+    r: string | null,
     alt_baro: number | null,
     lat: number | null,
     lon: number | null
 ): void {
     db.run(
         `INSERT OR IGNORE INTO aircraft_data (hex, timestamp, flight, alt_baro, lat, lon) VALUES (?, ?, ?, ?, ?, ?)`,
-        [hex, timestamp, flight, alt_baro, lat, lon],
+        [hex, timestamp, r, alt_baro, lat, lon],
         (err: Error | null) => { // Explicitly type `err`
             if (err) console.error('Database insert error:', err.message);
         }
@@ -59,7 +59,7 @@ export function pruneOldRecords(cutoff: number): void {
         if (err) {
             console.error('Error pruning old records:', err.message);
         } else {
-            console.log('Old records pruned successfully.');
+            //console.log('Old records pruned successfully.');
         }
     });
 }
@@ -70,7 +70,7 @@ export function clearAircraft(hex: string): Promise<void> {
             if (err) {
                 console.error('Error removing aircraft from history:', err.message);
             } else {
-                console.log('Aircraft removed from history successfully: ', hex);
+                //console.log('Aircraft removed from history successfully: ', hex);
             }
         });
     });

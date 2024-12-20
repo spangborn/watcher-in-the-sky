@@ -1,7 +1,7 @@
 import { fetchAircraftData } from '../adsb/adsb';
 import { insertFlightData, getRecentCoordinates, clearAircraft } from '../database/database';
 import { calculateCentroid, computeBearing } from '../helpers/coordinateUtils';
-import { reverse } from '../pelias/pelias';
+import { isNearbyAirport, reverse } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
 import { TAR1090_URL, TOTAL_CHANGE, TIME_WINDOW } from '../constants';
 import { captureScreenshot } from '../screenshot/screenshot';
@@ -39,7 +39,7 @@ export async function detectCirclingAircraft(): Promise<void> {
         if (hex && lat !== undefined && lon !== undefined && alt_baro !== "ground") {
             
             // Save the flight data in the database for a later check
-            insertFlightData(hex, now, flight, alt_baro, lat, lon);
+            insertFlightData(hex, now, r, alt_baro, lat, lon);
             found++;
 
             // Retrieve the data from the database
@@ -48,6 +48,14 @@ export async function detectCirclingAircraft(): Promise<void> {
             // If the data looks like a circling flight
             if (await isCircling(recentCoords)) {
                 const centroid = calculateCentroid(recentCoords); // Use this to ask Pelias what is there
+                const isNearAirport = await isNearbyAirport(centroid.lat, centroid.lon, {});
+
+                // If the aircraft is circling near the airport, don't post it
+                if (isNearAirport) {
+                    await clearAircraft(hex);
+                    console.log(`Aircraft ${hex} ${r.trim()} was circling near airport, not posting.`);
+                    return;
+                }
 
                 // TODO: Move this out into a method that takes the data and generates the message based on what information it has available
                 let description;
@@ -73,10 +81,11 @@ export async function detectCirclingAircraft(): Promise<void> {
                 const screenshotUrl = `${link}&hideButtons&hideSidebar&screenshot`;
 
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
-                const message = `Detected circling aircraft!\nHex: #${hex}\nFlight: #${flight.trim() || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear: ${description || 'Unknown'}\nView more: ${link}`;
+                const message = `Detected circling aircraft!\nHex: #${hex}\nRegistration: #${r.trim() || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear: ${description || 'Unknown'}\nView more: ${link}`;
                 const success = await postToBluesky(ac, message, screenshot_data);
 
                 if (success) {
+                    console.log(`Posting to Bsky: ${message}`);
                     await clearAircraft(hex);
                 }
             }
