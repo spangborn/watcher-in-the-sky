@@ -4,7 +4,7 @@ import { setupCache } from 'axios-cache-interceptor';
 
 const axiosCache = setupCache(axios, {
     debug: console.log,
-    ttl: 30000,
+    ttl: 10000,
     interpretHeader: false // ignore cache-control headers from the service
 });
 
