@@ -14,7 +14,7 @@ export async function captureScreenshot(hex: string, url: string): Promise<Uint8
             width: 1600,
             height: 800,
           },
-	timeout: 0,
+	    timeout: 0,
         headless: true
     });
     try {
