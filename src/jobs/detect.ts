@@ -53,7 +53,7 @@ export async function detectCirclingAircraft(): Promise<void> {
                 // If the aircraft is circling near the airport, don't post it
                 if (isNearAirport) {
                     await clearAircraft(hex);
-                    console.log(`Aircraft ${hex} ${r.trim()} was circling near airport, not posting.`);
+                    console.log(`Aircraft ${hex} ${r} was circling near airport, not posting.`);
                     return;
                 }
 
@@ -81,7 +81,7 @@ export async function detectCirclingAircraft(): Promise<void> {
                 const screenshotUrl = `${link}&hideButtons&hideSidebar&screenshot`;
 
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
-                const message = `Detected circling aircraft!\nHex: #${hex}\nRegistration: #${r.trim() || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear: ${description || 'Unknown'}\nView more: ${link}`;
+                const message = `Detected circling aircraft!\nHex: #${hex}\nRegistration: #${r || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear: ${description || 'Unknown'}\nView more: ${link}`;
                 const success = await postToBluesky(ac, message, screenshot_data);
 
                 if (success) {
