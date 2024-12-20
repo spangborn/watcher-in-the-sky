@@ -11,7 +11,7 @@ export async function detectAircraftFromList(): Promise<void> {
     console.log("Checking for aircraft on watchlist...");
     for (const aircraft of aircraftData) {
         const { hex, flight, alt_baro, lat, lon } = aircraft;
-        if (flight && watchlist.includes(flight) && alt_baro !== "ground") {
+        if (flight && watchlist.includes(flight.trim()) && alt_baro !== "ground") {
             // We found an aircraft on the watchlist
             console.log(`Found ${flight} on the watchlist`);
 
