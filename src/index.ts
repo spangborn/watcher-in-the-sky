@@ -4,8 +4,8 @@ import { CronJob } from 'cron';
 import { PRUNE_TIME } from './constants';
 import { detectAircraftFromList } from './jobs/watcher';
 
-new CronJob('*/30 * * * *', detectCirclingAircraft).start();
-new CronJob('* * * * *', () => pruneOldRecords(Date.now() - PRUNE_TIME)).start();
+new CronJob('*/10 * * * * *', detectCirclingAircraft).start();
+new CronJob('*/30 * * * * *', () => pruneOldRecords(Date.now() - PRUNE_TIME)).start();
 new CronJob('* * * * *', () => detectAircraftFromList()).start();
 
 (async () => {
