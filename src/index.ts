@@ -6,7 +6,7 @@ import { detectAircraftFromList } from './jobs/watcher';
 
 new CronJob('*/15 * * * * *', detectCirclingAircraft).start();
 new CronJob('*/30 * * * * *', () => pruneOldRecords(Date.now() - PRUNE_TIME)).start();
-new CronJob('* * * * *', () => detectAircraftFromList()).start();
+//new CronJob('* * * * *', () => detectAircraftFromList()).start();
 
 (async () => {
     console.log('Running initial detection...');
