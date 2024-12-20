@@ -40,7 +40,6 @@ export async function detectCirclingAircraft(): Promise<void> {
             
             // Save the flight data in the database for a later check
             insertFlightData(hex, now, flight, alt_baro, lat, lon);
-
             found++;
 
             // Retrieve the data from the database
@@ -74,7 +73,7 @@ export async function detectCirclingAircraft(): Promise<void> {
                 const screenshotUrl = `${link}&hideButtons&hideSidebar&screenshot`;
 
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
-                const message = `Detected circling aircraft!\nHex: #${hex}\nFlight: #${flight || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear: ${description || 'Unknown'}\nView more: ${link}`;
+                const message = `Detected circling aircraft!\nHex: #${hex}\nFlight: #${flight.trim() || 'Unknown'}\nAltitude: ${alt_baro || 'N/A'} ft\nNear: ${description || 'Unknown'}\nView more: ${link}`;
                 const success = await postToBluesky(ac, message, screenshot_data);
 
                 if (success) {
