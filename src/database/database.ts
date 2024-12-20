@@ -30,7 +30,7 @@ export function insertFlightData(
     lon: number | null
 ): void {
     db.run(
-        `INSERT OR IGNORE INTO aircraft_data (hex, timestamp, flight, alt_baro, lat, lon) VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT OR IGNORE INTO aircraft_data (hex, timestamp, r, alt_baro, lat, lon) VALUES (?, ?, ?, ?, ?, ?)`,
         [hex, timestamp, r, alt_baro, lat, lon],
         (err: Error | null) => { // Explicitly type `err`
             if (err) console.error('Database insert error:', err.message);
