@@ -48,15 +48,19 @@ export async function detectCirclingAircraft(): Promise<void> {
             // If the data looks like a circling flight
             if (await isCircling(recentCoords)) {
                 const centroid = calculateCentroid(recentCoords); // Use this to ask Pelias what is there
-                const isNearAirport = await isNearbyAirport(centroid.lat, centroid.lon, {});
+                try {
+                    const isNearAirport = await isNearbyAirport(centroid.lat, centroid.lon, {});
 
-                // If the aircraft is circling near the airport, don't post it
-                if (isNearAirport) {
-                    await clearAircraft(hex);
-                    console.log(`Aircraft ${hex} ${r} was circling near airport, not posting.`);
-                    return;
+                    // If the aircraft is circling near the airport, don't post it
+                    if (isNearAirport) {
+                        await clearAircraft(hex);
+                        console.log(`Aircraft ${hex} ${r} was circling near airport, not posting.`);
+                        return;
+                    }
                 }
-
+                catch (err) {
+                    console.log("Pelias nearby query failed: ", err);
+                }
                 // TODO: Move this out into a method that takes the data and generates the message based on what information it has available
                 let description;
                 try {
