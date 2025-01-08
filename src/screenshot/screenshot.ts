@@ -40,8 +40,8 @@ export async function captureScreenshot(hex: string, url: string): Promise<Uint8
 
         return screenshotData;
     }
-    catch (err) {
-        console.log("Encountered an error while trying to screenshot: ", err);
+    catch (err: any) {
+        console.log("Encountered an error while trying to screenshot: ", err.message);
         return new Uint8Array();
 
     }
