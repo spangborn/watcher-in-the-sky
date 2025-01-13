@@ -4,7 +4,7 @@
     "axios": "^1.7.9",
     "axios-cache-interceptor": "^1.6.2",
     "chokidar": "^4.0.3",
-    "cron": "^3.3.2",
+    "cron": "^3.5.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "moment": "^2.30.1",
