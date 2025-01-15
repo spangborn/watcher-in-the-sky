@@ -1,10 +1,5 @@
 import sqlite3 from 'sqlite3';
 
-interface AircraftDataRow {
-    lat: number;
-    lon: number;
-}
-
 const db = new sqlite3.Database('./aircraft.db');
 
 db.serialize(() => {
@@ -38,16 +33,16 @@ export function insertFlightData(
     );
 }
 
-export function getRecentCoordinates(hex: string, cutoff: number): Promise<AircraftDataRow[]> {
+export function getRecentCoordinates(hex: string, cutoff: number): Promise<{ lat: number; lon: number; timestamp: number; r: string }[]> {
     return new Promise((resolve, reject) => {
         db.all(
-            `SELECT lat, lon FROM aircraft_data WHERE hex = ? AND timestamp >= ? ORDER BY timestamp ASC`,
+            `SELECT lat, lon, timestamp, r FROM aircraft_data WHERE hex = ? AND timestamp >= ? ORDER BY timestamp ASC`,
             [hex, cutoff],
-            (err: Error | null, rows: AircraftDataRow[]) => { // Type `rows` as `AircraftDataRow[]`
+            (err: Error | null, rows: { lat: number; lon: number; timestamp: number; r: string }[]) => {
                 if (err) {
                     reject(err);
                 } else {
-                    resolve(rows); // Directly resolve the rows since they're already typed
+                    resolve(rows);
                 }
             }
         );
