@@ -130,7 +130,7 @@ export async function detectCirclingAircraft(): Promise<void> {
 
                 const built = new URLSearchParams(urlParams);
                 const link = `${TAR1090_URL}?${built}`;
-                const screenshotUrl = `${link}&hideButtons&hideSidebar&screenshot`;
+                const screenshotUrl = `${link}&hideButtons&hideSidebar&screenshot&nowebgl`;
 
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
                 const message = `Detected circling aircraft!\nHex: #${hex}\nRegistration: #${r || 'Unknown'

@@ -1,4 +1,4 @@
-const { postToBluesky } = require("./bluesky/bluesky");
+import { timeout } from "cron";
 
 const puppeteer = require('puppeteer');
 
@@ -20,14 +20,25 @@ const puppeteer = require('puppeteer');
 
         // Create a new page
         const page = await browser.newPage();
+        const recorder = await page.screencast({path: 'recording.webm'});
 
         // Set viewport width and height
         await page.setViewport({ width: 1600, height: 800 });
 
-        await page.goto("https://globe.airplanes.live/?icao=ae0dbf&zoom=13&", { waitUntil: 'networkidle0' });
+        await page.goto("https://globe.airplanes.live/?icao=a9ff6d&zoom=13&hideButtons&hideSidebar&screenshot&nowebgl", { waitUntil: 'networkidle0', timeout: 0});
 
         // Sigh, wait 4 seconds
         //await delay(4000);
+
+        await page.evaluate(() => {
+            let attribution = document.querySelector('div.ol-attribution');
+            attribution?.parentNode?.removeChild(attribution)
+        })
+
+        await page.evaluate(() => {
+            let sidebar = document.querySelector('#selected_infoblock');
+            sidebar?.parentNode?.removeChild(sidebar)
+        });
 
         // Capture screenshot
         let screenshotData = await page.screenshot({
@@ -37,9 +48,14 @@ const puppeteer = require('puppeteer');
             width: 1200,
             height: 800
             },
-            quality: 100, type: 'jpeg'
+            quality: 100, type: 'jpeg',
+            path: `screenshot.jpg`
         });
         
+        // await delay(10000);
+        await recorder.stop();
+        console.log(screenshotData);
+
         return screenshotData;
     }
     catch (err) {

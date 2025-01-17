@@ -27,6 +27,16 @@ export async function captureScreenshot(hex: string, url: string): Promise<Uint8
 
         await delay(4000);
 
+        await page.evaluate(() => {
+            let attribution = document.querySelector('div.ol-attribution');
+            attribution?.parentNode?.removeChild(attribution)
+        })
+
+        await page.evaluate(() => {
+            let sidebar = document.querySelector('#selected_infoblock');
+            sidebar?.parentNode?.removeChild(sidebar)
+        });
+
         // Capture screenshot
         let screenshotData = await page.screenshot({
             clip: {
