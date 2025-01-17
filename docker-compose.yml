@@ -13,3 +13,4 @@ services:
     command: npm run dev
     env_file:
       - .env
+    restart: unless-stopped

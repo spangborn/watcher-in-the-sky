@@ -5,3 +5,4 @@ services:
     build:
       target: production
     command: npm run start
+    restart: unless-stopped
