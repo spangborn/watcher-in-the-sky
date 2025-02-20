@@ -1,4 +1,4 @@
-import { AtpAgent, RichText } from '@atproto/api';
+import { AppBskyFeedPost, AtpAgent, RichText } from '@atproto/api';
 import { BLUESKY_USERNAME, BLUESKY_PASSWORD, BLUESKY_DEBUG } from '../constants';
 
 const agent = new AtpAgent({ service: 'https://bsky.social' });
@@ -31,12 +31,11 @@ export async function postToBluesky(aircraft: any, message: string, screenshot_d
             const { data } = await agent.uploadBlob(screenshot_data, {
                 encoding: "image/jpg",
             });
-            const postRecord = {
-                $type: 'app.bsky.feed.post',
+            const postRecord: Partial<AppBskyFeedPost.Record> & Omit<AppBskyFeedPost.Record, 'createdAt'> = {
+                $type: "app.bsky.feed.post",
                 langs: ["en-US"],
                 text: rt.text,
                 facets: rt.facets,
-                createdAt: new Date().toISOString(),
                 embed: {
                     $type: 'app.bsky.embed.images',
                     images: [{
