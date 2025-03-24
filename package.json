@@ -2,7 +2,7 @@
   "dependencies": {
     "@atproto/api": "^0.14.9",
     "axios": "^1.8.2",
-    "axios-cache-interceptor": "^1.6.2",
+    "axios-cache-interceptor": "^1.7.0",
     "chokidar": "^4.0.3",
     "cron": "^4.1.0",
     "dotenv": "^16.4.7",
