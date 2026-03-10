@@ -10,7 +10,7 @@
     "moment": "^2.30.1",
     "puppeteer": "^24.37.5",
     "puppeteer-core": "^24.35.0",
-    "rita": "^3.2.8",
+    "rita": "^3.2.11",
     "sqlite3": "^5.1.7",
     "typescript": "^5.9.3"
   },
