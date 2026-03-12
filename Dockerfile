@@ -52,6 +52,8 @@ RUN npm run build
 # Default path for aircraft DB; app will create it at startup if missing (see index.ts)
 ENV AIRCRAFT_INFO_DB=/home/node/app/aircraft_info.db
 
+EXPOSE 3000
+
 RUN npm run test
 
 #CMD ["node", "build/index.js"]

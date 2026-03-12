@@ -13,6 +13,7 @@ import { captureScreenshot } from '../screenshot/screenshot';
 import { buildImagingMessage, type ReverseGeoProperties } from '../generation/message';
 import { getRecord as getAircraftInfo } from '../aircraftInfo/aircraftInfo';
 import { incrementZigzag } from '../health/metrics';
+import { formatLocalTime } from '../helpers/dateUtils';
 import * as log from '../log';
 
 export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?: any[]): Promise<void> {
@@ -143,7 +144,7 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
 
     const msg = `Zig-zag detection completed. ${found} aircraft checked.`;
     const nextPart = nextCheckInMs != null
-        ? ` Next check in ${nextCheckInMs / 1000}s at ${new Date(Date.now() + nextCheckInMs).toLocaleTimeString()}.`
+        ? ` Next check in ${nextCheckInMs / 1000}s at ${formatLocalTime(new Date(Date.now() + nextCheckInMs)).slice(11, 19)}.`
         : '';
     log.success(msg + nextPart);
 }

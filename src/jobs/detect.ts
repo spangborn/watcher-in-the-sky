@@ -8,6 +8,7 @@ import { captureScreenshot } from '../screenshot/screenshot';
 import { buildCirclingMessage, type ReverseGeoProperties } from '../generation/message';
 import { getRecord as getAircraftInfo } from '../aircraftInfo/aircraftInfo';
 import { incrementCircling } from '../health/metrics';
+import { formatLocalTime } from '../helpers/dateUtils';
 import * as log from '../log';
 
 
@@ -214,7 +215,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
     }
     const msg = `Aircraft detection completed. ${found} aircraft found. Excluded ${data.length - found} from check.`;
     const nextPart = nextCheckInMs != null
-        ? ` Next check in ${nextCheckInMs / 1000}s at ${new Date(Date.now() + nextCheckInMs).toLocaleTimeString()}.`
+        ? ` Next check in ${nextCheckInMs / 1000}s at ${formatLocalTime(new Date(Date.now() + nextCheckInMs)).slice(11, 19)}.`
         : '';
     log.success(msg + nextPart);
 }
