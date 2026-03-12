@@ -12,6 +12,7 @@ import { TAR1090_URL, TIME_WINDOW } from '../constants';
 import { captureScreenshot } from '../screenshot/screenshot';
 import { buildImagingMessage, type ReverseGeoProperties } from '../generation/message';
 import { getRecord as getAircraftInfo } from '../aircraftInfo/aircraftInfo';
+import { incrementZigzag } from '../health/metrics';
 import * as log from '../log';
 
 export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?: any[]): Promise<void> {
@@ -51,6 +52,7 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
 
         if (!zigzagPeriod || !isZigzagPattern(zigzagPeriod.segment)) continue;
 
+        incrementZigzag();
         const { segment } = zigzagPeriod;
         const centroid = calculateCentroid(segment);
 

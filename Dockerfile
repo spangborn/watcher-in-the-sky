@@ -1,6 +1,10 @@
 FROM node:22 as base
 
-# Runtime deps for Puppeteer's bundled Chrome
+# Use system Chromium in Docker (skip Puppeteer's download)
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Runtime deps + Chromium for Puppeteer
 RUN apt-get update && apt-get install -y \
   fonts-liberation \
   libasound2 \
@@ -20,6 +24,8 @@ RUN apt-get update && apt-get install -y \
   libu2f-udev \
   libxshmfence1 \
   libglu1-mesa \
+  chromium \
+  chromium-sandbox \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -27,7 +33,7 @@ WORKDIR /home/node/app
 
 COPY package*.json ./
 
-RUN npm i && npm run install:browser
+RUN npm i
 
 COPY . .
 
@@ -37,6 +43,9 @@ FROM base as production
 
 ENV NODE_PATH=./build
 WORKDIR /home/node/app
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 RUN npm run build
 

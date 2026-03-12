@@ -1,14 +1,22 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
+import express from 'express';
 import { fetchAircraftData } from './adsb/adsb';
 import { detectCirclingAircraft } from './jobs/detect';
 import { detectZigzagAircraft } from './jobs/detectZigzag';
 import { pruneOldRecords } from './database/database';
 import { CronJob } from 'cron';
-import { PRUNE_TIME, DETECTION_INTERVAL_MS, ENABLE_CIRCLING_DETECTION, ENABLE_ZIGZAG_DETECTION, AIRCRAFT_INFO_DB } from './constants';
+import { PRUNE_TIME, DETECTION_INTERVAL_MS, ENABLE_CIRCLING_DETECTION, ENABLE_ZIGZAG_DETECTION, AIRCRAFT_INFO_DB, HEALTH_PORT } from './constants';
 import { RateLimitError } from './adsb/adsb';
+import { healthHandler } from './health/route';
 import * as log from './log';
+
+const app = express();
+app.get('/health', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    healthHandler(req, res).catch(next);
+});
+app.listen(HEALTH_PORT, () => log.info(`Health server listening on port ${HEALTH_PORT}`));
 
 function ensureAircraftInfoDb(): void {
     if (!AIRCRAFT_INFO_DB) return;

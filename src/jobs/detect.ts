@@ -7,6 +7,7 @@ import { TAR1090_URL, TOTAL_CHANGE, TIME_WINDOW } from '../constants';
 import { captureScreenshot } from '../screenshot/screenshot';
 import { buildCirclingMessage, type ReverseGeoProperties } from '../generation/message';
 import { getRecord as getAircraftInfo } from '../aircraftInfo/aircraftInfo';
+import { incrementCircling } from '../health/metrics';
 import * as log from '../log';
 
 
@@ -119,6 +120,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
             }
 
             if (curvyPeriod && (await isCircling(curvyPeriod.segment))) {
+                incrementCircling();
                 const { segment } = curvyPeriod;
                 const centroid = calculateCentroid(segment);
 

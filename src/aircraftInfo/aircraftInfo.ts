@@ -4,7 +4,11 @@
  * Schema: aircraft(icao TEXT PRIMARY KEY, registration TEXT, type TEXT)
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
 import sqlite3 from 'sqlite3';
+import { AIRCRAFT_INFO_DB } from '../constants';
+import { formatLocalTime } from '../helpers/dateUtils';
 
 let db: sqlite3.Database | null = null;
 let dbPath: string | null = null;
@@ -63,5 +67,48 @@ export function getRecord(icao: string): Promise<AircraftRecord | null> {
                 resolve({ registration: reg, type });
             }
         );
+    });
+}
+
+export interface AircraftDbStats {
+    count: number;
+    lastUpdated: string | null;
+}
+
+/** Returns row count and last-modified time of the aircraft DB file. Uses same config as app (constants). */
+export function getAircraftDbStats(): Promise<AircraftDbStats> {
+    if (!AIRCRAFT_INFO_DB) {
+        return Promise.resolve({ count: 0, lastUpdated: null });
+    }
+    const resolvedPath = path.resolve(process.cwd(), AIRCRAFT_INFO_DB);
+    return new Promise((resolve) => {
+        const database = getDb();
+        if (!database) {
+            let lastUpdated: string | null = null;
+            try {
+                if (fs.existsSync(resolvedPath)) {
+                    lastUpdated = formatLocalTime(fs.statSync(resolvedPath).mtime);
+                }
+            } catch {
+                // ignore
+            }
+            resolve({ count: 0, lastUpdated });
+            return;
+        }
+        database.get('SELECT COUNT(*) AS n FROM aircraft', [], (err: Error | null, row: { n: number } | undefined) => {
+            if (err || row == null) {
+                resolve({ count: 0, lastUpdated: null });
+                return;
+            }
+            let lastUpdated: string | null = null;
+            try {
+                if (fs.existsSync(resolvedPath)) {
+                    lastUpdated = formatLocalTime(fs.statSync(resolvedPath).mtime);
+                }
+            } catch {
+                // ignore
+            }
+            resolve({ count: row.n, lastUpdated });
+        });
     });
 }

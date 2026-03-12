@@ -8,9 +8,11 @@ function delay(time: number) {
 }
 
 export async function captureScreenshot(hex: string, url: string): Promise<Uint8Array> {
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
     let browser;
     try {
         browser = await puppeteer.launch({
+        ...(executablePath ? { executablePath } : {}),
         args: ['--no-sandbox', '--window-size=1920,1080', '--ignore-certificate-errors', '--ignore-certificate-errors-spki-list', '--disable-dev-shm-usage'],
         defaultViewport: {
             width: 1600,

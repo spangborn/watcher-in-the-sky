@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { TAR1090_DATA_URL, USER_AGENT, AIRCRAFT_CACHE_TTL_MS } from '../constants';
+import { TAR1090_DATA_URL, AIRCRAFT_CACHE_TTL_MS } from '../constants';
+import { increment429, incrementNon429 } from '../health/metrics';
 import { setupCache } from 'axios-cache-interceptor';
 
 const axiosCache = setupCache(axios, {
@@ -46,6 +47,11 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, maxRetries = DEFAULT_MAX_
             return await fn();
         } catch (error) {
             lastError = error;
+            if (isRateLimited(error)) {
+                increment429();
+            } else {
+                incrementNon429();
+            }
             if (!isRateLimited(error) || attempt === maxRetries) {
                 if (isRateLimited(error) && attempt === maxRetries) {
                     throw new RateLimitError('TAR1090 rate limited after retries');
