@@ -1,5 +1,3 @@
-version: '3.7'
-
 services:
   watcher:
     build:
@@ -10,9 +8,9 @@ services:
       - "3000:3000"
     environment:
       - TZ=America/Denver
-      - AIRCRAFT_INFO_DB=/home/node/app/aircraft_info.db
+      - AIRCRAFT_INFO_DB=/home/node/app/data/aircraft_info.db
     volumes:
-      - aircraft_db:/home/node/app/aircraft_info.db
+      - aircraft_db:/home/node/app/data
 
 volumes:
   aircraft_db:

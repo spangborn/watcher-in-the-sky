@@ -50,8 +50,8 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 RUN npm run build
 
-# Default path for aircraft DB; app will create it at startup if missing (see index.ts)
-ENV AIRCRAFT_INFO_DB=/home/node/app/aircraft_info.db
+# Default path for aircraft DB; app will create it at startup if missing (entrypoint)
+ENV AIRCRAFT_INFO_DB=/home/node/app/data/aircraft_info.db
 
 EXPOSE 3000
 
