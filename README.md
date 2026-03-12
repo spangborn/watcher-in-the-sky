@@ -43,7 +43,12 @@ If you already have the extracted JSON:
 
 Set in `.env`: `AIRCRAFT_INFO_DB=./aircraft_info.db`
 
-**Docker:** The container creates the DB at startup if it doesn’t exist (e.g. first run or no volume). Set `AIRCRAFT_INFO_DB` in the container (default `/home/node/app/aircraft_info.db`). Mount a volume on that path to persist or supply your own DB.
+**Docker (ensure DB is built on start):**  
+Both compose files set `AIRCRAFT_INFO_DB=/home/node/app/aircraft_info.db`, so the app builds the DB on first start when the file is missing. You don’t need to set it in `.env` for Docker.
+
+- **`.env`** – Use for local (non-Docker) runs and secrets (Bluesky, API URLs, etc.). For local: `AIRCRAFT_INFO_DB=./aircraft_info.db` so the script writes into your project dir.
+- **`docker-compose.yml`** (dev) and **`docker-compose.prod.yml`** (prod) – Each sets `AIRCRAFT_INFO_DB` and mounts a named volume `aircraft_db` at that path so the DB is created on first start and persists across container restarts.
+- **`make up`** or **`make up-prod`** – Either will create the DB on first run; the volume keeps it for later runs.
 
 ## To-do:
 1. Pull photo of aircraft from airport-data (if available)

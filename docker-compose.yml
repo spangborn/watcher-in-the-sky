@@ -9,6 +9,7 @@ services:
     volumes:
       - ./src:/home/node/app/src
       - ./nodemon.json:/home/node/app/nodemon.json
+      - aircraft_db:/home/node/app/aircraft_info.db
     container_name: watcher-in-the-sky
     command: npm run dev
     env_file:
@@ -18,3 +19,7 @@ services:
       - "3000:3000"
     environment:
       - TZ=America/Denver
+      - AIRCRAFT_INFO_DB=/home/node/app/aircraft_info.db
+
+volumes:
+  aircraft_db:
