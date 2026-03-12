@@ -1,10 +1,6 @@
-FROM --platform=linux/arm64 node:22 as base
+FROM node:22 as base
 
-# We don't need the standalone Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
-ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
-
-# Install necessary dependencies for Puppeteer and Chromium
+# Runtime deps for Puppeteer's bundled Chrome
 RUN apt-get update && apt-get install -y \
   fonts-liberation \
   libasound2 \
@@ -24,8 +20,6 @@ RUN apt-get update && apt-get install -y \
   libu2f-udev \
   libxshmfence1 \
   libglu1-mesa \
-  chromium \
-  chromium-sandbox \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -33,7 +27,7 @@ WORKDIR /home/node/app
 
 COPY package*.json ./
 
-RUN npm i
+RUN npm i && npm run install:browser
 
 COPY . .
 
@@ -44,13 +38,11 @@ FROM base as production
 ENV NODE_PATH=./build
 WORKDIR /home/node/app
 
-# Puppeteer setup: Skip Chromium download and use the installed Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
-
 RUN npm run build
 
-# Attempting to see if puppeteer works now
+# Default path for aircraft DB; app will create it at startup if missing (see index.ts)
+ENV AIRCRAFT_INFO_DB=/home/node/app/aircraft_info.db
+
 RUN npm run test
 
 #CMD ["node", "build/index.js"]

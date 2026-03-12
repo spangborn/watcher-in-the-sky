@@ -1,11 +1,20 @@
 import { TAR1090_URL } from "../constants";
-import { fetchAircraftData } from "../adsb/adsb";
+import { fetchAircraftData, RateLimitError } from "../adsb/adsb";
 import { captureScreenshot } from "../screenshot/screenshot";
 import { postToBluesky } from "../bluesky/bluesky";
 
 
 export async function detectAircraftFromList(): Promise<void> {
-    const aircraftData = await fetchAircraftData();
+    let aircraftData: any[];
+    try {
+        aircraftData = await fetchAircraftData();
+    } catch (err) {
+        if (err instanceof RateLimitError) {
+            console.warn('Watchlist check skipped (rate limited)');
+            return;
+        }
+        throw err;
+    }
     const watchlist = ["N352HP", "N353HP", "N354HP"];
     
     console.log("Checking for aircraft on watchlist...");

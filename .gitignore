@@ -9,8 +9,9 @@ lerna-debug.log*
 
 .DS_Store
 
-# Aircraft DB
+# Aircraft DB (position history) and Mictronics-derived lookup DB
 aircraft.db
+aircraft_info.db
 
 # Env files
 .env

@@ -1,8 +1,10 @@
 {
   "dependencies": {
     "@atproto/api": "^0.19.0",
+    "adm-zip": "^0.5.16",
     "axios": "^1.13.6",
     "axios-cache-interceptor": "^1.12.0",
+    "chalk": "^4.1.2",
     "chokidar": "^5.0.0",
     "cron": "^4.4.0",
     "dotenv": "^17.3.1",
@@ -16,13 +18,16 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "vitest": "^4.0.18"
   },
   "scripts": {
     "start": "NODE_PATH=./build node build/index.js",
     "prod": "node build/index.js",
     "build": "tsc -p .",
-    "dev": "nodemon src/index.ts",
-    "test": "npx ts-node src/test.ts"
+    "dev": "BLUESKY_DEBUG=true nodemon src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "install:browser": "npx puppeteer browsers install chrome"
   }
 }

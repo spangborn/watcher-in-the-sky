@@ -2,6 +2,8 @@ import sqlite3 from 'sqlite3';
 
 const db = new sqlite3.Database('./aircraft.db');
 
+const POST_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+
 db.serialize(() => {
     db.run(`
         CREATE TABLE IF NOT EXISTS aircraft_data (
@@ -12,6 +14,12 @@ db.serialize(() => {
             lat REAL,
             lon REAL,
             PRIMARY KEY (hex, timestamp)
+        );
+    `);
+    db.run(`
+        CREATE TABLE IF NOT EXISTS last_posted (
+            hex TEXT PRIMARY KEY,
+            posted_at INTEGER NOT NULL
         );
     `);
 });
@@ -64,9 +72,43 @@ export function clearAircraft(hex: string): Promise<void> {
         db.run(`DELETE FROM aircraft_data WHERE hex = ?`, [hex], (err: Error | null) => {
             if (err) {
                 console.error('Error removing aircraft from history:', err.message);
-            } else {
-                //console.log('Aircraft removed from history successfully: ', hex);
             }
+            resolve();
         });
+    });
+}
+
+/** True if this hex was posted within the last 30 minutes. */
+export function wasPostedRecently(hex: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+        db.get(
+            `SELECT posted_at FROM last_posted WHERE hex = ?`,
+            [hex],
+            (err: Error | null, row: { posted_at: number } | undefined) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                if (!row) {
+                    resolve(false);
+                    return;
+                }
+                resolve(Date.now() - row.posted_at < POST_COOLDOWN_MS);
+            }
+        );
+    });
+}
+
+/** Record that this aircraft was just posted (starts 30-min cooldown). */
+export function recordPosted(hex: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        db.run(
+            `INSERT OR REPLACE INTO last_posted (hex, posted_at) VALUES (?, ?)`,
+            [hex, Date.now()],
+            (err: Error | null) => {
+                if (err) reject(err);
+                else resolve();
+            }
+        );
     });
 }
