@@ -29,6 +29,7 @@
     "dev": "BLUESKY_DEBUG=true nodemon src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "install:browser": "npx puppeteer browsers install chrome"
+    "install:browser": "npx puppeteer browsers install chrome",
+    "create-aircraft-db": "ts-node scripts/create-aircraft-db.ts"
   }
 }

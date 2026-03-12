@@ -37,7 +37,8 @@ RUN npm i
 
 COPY . .
 
-
+RUN chmod +x scripts/docker-entrypoint.sh
+ENTRYPOINT ["scripts/docker-entrypoint.sh"]
 
 FROM base as production
 
@@ -56,4 +57,4 @@ EXPOSE 3000
 
 RUN npm run test
 
-#CMD ["node", "build/index.js"]
+CMD ["npm", "run", "start"]
