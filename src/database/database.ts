@@ -112,3 +112,17 @@ export function recordPosted(hex: string): Promise<void> {
         );
     });
 }
+
+/** Returns the number of distinct aircraft (hexes) currently in the tracking database. */
+export function getTrackingAircraftCount(): Promise<number> {
+    return new Promise((resolve, reject) => {
+        db.get(
+            'SELECT COUNT(DISTINCT hex) AS n FROM aircraft_data',
+            [],
+            (err: Error | null, row: { n: number } | undefined) => {
+                if (err) reject(err);
+                else resolve(row?.n ?? 0);
+            }
+        );
+    });
+}

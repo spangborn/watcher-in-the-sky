@@ -15,8 +15,8 @@ export const BLUESKY_DEBUG = process.env.BLUESKY_DEBUG === 'true' || process.env
 /** When true, dry run: don't post, print message to terminal. */
 export const BLUESKY_DRY_RUN = process.env.BLUESKY_DRY_RUN === 'true' || process.env.BLUESKY_DRY_RUN === '1';
 export const USER_AGENT = process.env.USER_AGENT || 'Watcher in the Sky';
-/** Optional path to SQLite DB from Mictronics aircraft data (see scripts/create-aircraft-db.ts). */
-export const AIRCRAFT_INFO_DB = process.env.AIRCRAFT_INFO_DB || '';
+/** Optional path to SQLite DB from Mictronics aircraft data (see scripts/create-aircraft-db.ts). Defaults to ./aircraft_info.db when env is undefined; set to empty string to disable. */
+export const AIRCRAFT_INFO_DB = process.env.AIRCRAFT_INFO_DB === undefined ? './aircraft_info.db' : process.env.AIRCRAFT_INFO_DB;
 
 /** Detection loop interval (ms). Circling and zig-zag jobs run each interval. */
 export const DETECTION_INTERVAL_MS = parseInt(process.env.DETECTION_INTERVAL_MS || '20000', 10);
