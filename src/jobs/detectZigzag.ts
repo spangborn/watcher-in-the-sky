@@ -65,7 +65,9 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
                 continue;
             }
         } catch (err) {
-            log.warn(`Pelias nearby query failed: ${err}`);
+            log.warn(`Pelias airport check failed (skipping post to be safe): ${err}`);
+            await clearAircraft(hex);
+            continue;
         }
 
         let reverseGeoProps: ReverseGeoProperties | null = null;

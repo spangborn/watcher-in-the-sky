@@ -30,6 +30,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "install:browser": "npx puppeteer browsers install chrome",
-    "create-aircraft-db": "ts-node scripts/create-aircraft-db.ts"
+    "create-aircraft-db": "ts-node scripts/create-aircraft-db.ts",
+    "check-pelias-airport": "ts-node scripts/check-pelias-airport.ts"
   }
 }

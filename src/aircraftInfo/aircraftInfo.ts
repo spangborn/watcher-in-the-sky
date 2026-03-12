@@ -7,18 +7,31 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import sqlite3 from 'sqlite3';
-import { AIRCRAFT_INFO_DB } from '../constants';
 import { formatLocalTime } from '../helpers/dateUtils';
 
 let db: sqlite3.Database | null = null;
 let dbPath: string | null = null;
 
+/** Resolve path at runtime so tests can override process.env.AIRCRAFT_INFO_DB. Same default as constants. */
+function getPathEnv(): string {
+    return process.env.AIRCRAFT_INFO_DB === undefined ? './aircraft_info.db' : process.env.AIRCRAFT_INFO_DB;
+}
+
 function getResolvedDbPath(): string {
-    return AIRCRAFT_INFO_DB ? path.resolve(process.cwd(), AIRCRAFT_INFO_DB) : '';
+    const pathEnv = getPathEnv();
+    return pathEnv ? path.resolve(process.cwd(), pathEnv) : '';
 }
 
 function getDb(): sqlite3.Database | null {
-    if (!AIRCRAFT_INFO_DB) return null;
+    const pathEnv = getPathEnv();
+    if (!pathEnv) {
+        if (db) {
+            db.close();
+            db = null;
+            dbPath = null;
+        }
+        return null;
+    }
     const resolvedPath = getResolvedDbPath();
     // Reopen if path changed (e.g. in tests)
     if (db && dbPath !== resolvedPath) {
@@ -98,9 +111,9 @@ export interface AircraftDbStats {
     lastUpdated: string | null;
 }
 
-/** Returns row count, file size, and last-modified time of the aircraft DB file. Uses same config as app (constants). */
+/** Returns row count, file size, and last-modified time of the aircraft DB file. Uses same config as app (env at runtime). */
 export function getAircraftDbStats(): Promise<AircraftDbStats> {
-    if (!AIRCRAFT_INFO_DB) {
+    if (!getPathEnv()) {
         return Promise.resolve({ count: 0, fileSizeBytes: 0, lastUpdated: null });
     }
     const resolvedPath = getResolvedDbPath();

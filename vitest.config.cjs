@@ -1,7 +1,6 @@
-import { defineConfig } from 'vitest/config';
-import path from 'path';
+const path = require('path');
 
-export default defineConfig({
+module.exports = {
     test: {
         globals: true,
         environment: 'node',
@@ -9,8 +8,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            // Match tsconfig baseUrl so imports like 'constants' resolve from src/
             '@': path.resolve(__dirname, './src'),
         },
     },
-});
+};

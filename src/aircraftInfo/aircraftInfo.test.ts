@@ -59,7 +59,7 @@ describe('aircraftInfo getRecord', () => {
     });
 
     it('returns null when AIRCRAFT_INFO_DB is not set', async () => {
-        delete process.env.AIRCRAFT_INFO_DB;
+        process.env.AIRCRAFT_INFO_DB = '';
         expect(await getRecord('ABC123')).toBeNull();
     });
 

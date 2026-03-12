@@ -27,7 +27,7 @@ describe('buildCirclingMessage', () => {
             null,
             url
         );
-        expect(msg).toMatch(/^(N352HP|Aircraft with unknown registration, hex\/ICAO A1B2C3) is circling/);
+        expect(msg).toMatch(/^(#N352HP|Aircraft with unknown registration, hex\/ICAO A1B2C3) is circling/);
         expect(msg).toContain('View more: ' + url);
     });
 
@@ -37,7 +37,7 @@ describe('buildCirclingMessage', () => {
             null,
             url
         );
-        expect(msg).toContain('call sign PAT456');
+        expect(msg).toContain('call sign #PAT456');
     });
 
     it('omits call sign when flight equals registration', () => {
@@ -128,7 +128,7 @@ describe('buildCirclingMessage', () => {
             { locality: 'Burbank', county: 'Los Angeles' },
             url
         );
-        expect(msg).toContain('call sign SKW123');
+        expect(msg).toContain('call sign #SKW123');
         expect(msg).toContain('at 5200 feet');
         expect(msg).toContain('speed');
         expect(msg).toContain('MPH');
@@ -142,7 +142,7 @@ describe('buildCirclingMessage', () => {
             null,
             url
         );
-        expect(msg).toContain('08-1234, a military');
+        expect(msg).toContain('#08-1234, a military');
         expect(msg).toContain('is circling');
     });
 
@@ -163,7 +163,7 @@ describe('buildCirclingMessage', () => {
             null,
             url
         );
-        expect(msg).toMatch(/^(N123|N123, a Cessna 172) is circling/);
+        expect(msg).toMatch(/^(#N123|#N123, a Cessna 172) is circling/);
     });
 
     it('uses type with unknown registration when type set and no r', () => {
@@ -209,7 +209,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: first }
             );
-            expect(msg).toMatch(/^N352HP is circling\nView more:/);
+            expect(msg).toMatch(/^#N352HP is circling\nView more:/);
         });
 
         it('exact: aircraft with unknown registration when no reg and random picks first', () => {
@@ -229,7 +229,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: first }
             );
-            expect(msg).toMatch(/^N123 is circling\nView more:/);
+            expect(msg).toMatch(/^#N123 is circling\nView more:/);
         });
 
         it('exact: registration, a type when type set and random picks second', () => {
@@ -239,7 +239,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: () => 0.76 }
             );
-            expect(msg).toMatch(/^N123, a Cessna 172 is circling\nView more:/);
+            expect(msg).toMatch(/^#N123, a Cessna 172 is circling\nView more:/);
         });
 
         it('exact: military + registration (first option)', () => {
@@ -249,7 +249,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: first }
             );
-            expect(msg).toMatch(/^08-1234, a military aircraft is circling\nView more:/);
+            expect(msg).toMatch(/^#08-1234, a military aircraft is circling\nView more:/);
         });
 
         it('exact: military + registration + type (second option)', () => {
@@ -259,7 +259,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: () => 0.6 }
             );
-            expect(msg).toMatch(/^08-1234, a military F-16 is circling\nView more:/);
+            expect(msg).toMatch(/^#08-1234, a military F-16 is circling\nView more:/);
         });
 
         it('exact: type with unknown registration', () => {
@@ -452,7 +452,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                     random: first,
                 }
             );
-            expect(msg).toContain('N1 call sign FLT is circling over N, L');
+            expect(msg).toContain('#N1 call sign #FLT is circling over N, L');
             expect(msg).toContain('at 35000 feet');
             expect(msg).toContain('speed');
             expect(msg).toContain('MPH');

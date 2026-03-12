@@ -23,24 +23,36 @@ export async function reverse(lat: number, lon: number, options: Record<string, 
     }
 }
 
-export async function isNearbyAirport(lat: number, lon: number, options: Record<string, any> = {}): Promise<any> {
+/** Radius in km when checking for nearby airports. Pelias API clamps boundary.circle.radius to 5km max. */
+const AIRPORT_NEARBY_RADIUS_KM = 5;
+
+/**
+ * Returns true if an aerodrome (airport) is within AIRPORT_NEARBY_RADIUS_KM of the point.
+ * Uses Pelias /v1/nearby with categories=transport:air:aerodrome.
+ * Requires Pelias to be built with venue/POI data that includes airports (e.g. whosonfirst).
+ */
+export async function isNearbyAirport(lat: number, lon: number, options: Record<string, unknown> = {}): Promise<boolean> {
     const requestUrl = new URL("/v1/nearby", PELIAS_INSTANCE);
 
-    Object.entries({ ...options, 'point.lat': lat, 'point.lon': lon, "categories": "transport:air:aerodrome", size: '10' }).forEach(([key, value]) => {
-        requestUrl.searchParams.append(key, String(value));
+    const params: Record<string, string> = {
+        'point.lat': String(lat),
+        'point.lon': String(lon),
+        'categories': 'transport:air:aerodrome',
+        'size': '10',
+        'boundary.circle.radius': String(AIRPORT_NEARBY_RADIUS_KM),
+        ...Object.fromEntries(
+            Object.entries(options).map(([k, v]) => [k, String(v)])
+        ),
+    };
+    Object.entries(params).forEach(([key, value]) => {
+        requestUrl.searchParams.set(key, value);
     });
     console.log(`Querying ${requestUrl}`);
     try {
         const response = await axios.get(requestUrl.toString());
-
-        if (response.data?.features.length > 0) {
-            return true;
-        }
-        else
-            return false;
-
-    } catch (error: any) {
-        console.error('Error during reverse query:', error.message);
+        return (response.data?.features?.length ?? 0) > 0;
+    } catch (error: unknown) {
+        console.error('Error during airport nearby query:', error instanceof Error ? error.message : error);
         throw error;
     }
 }

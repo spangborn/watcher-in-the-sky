@@ -127,14 +127,15 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
 
                 try {
                     const isNearAirport = await isNearbyAirport(centroid.lat, centroid.lon, {});
-
                     if (isNearAirport) {
                         await clearAircraft(hex);
                         log.warn(`Aircraft ${hex} ${rFromApi} was circling near airport, not posting.`);
                         return;
                     }
                 } catch (err) {
-                    log.warn(`Pelias nearby query failed: ${err}`);
+                    log.warn(`Pelias airport check failed (skipping post to be safe): ${err}`);
+                    await clearAircraft(hex);
+                    return;
                 }
 
                 let reverseGeoProps: ReverseGeoProperties | null = null;

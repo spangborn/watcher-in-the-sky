@@ -48,9 +48,15 @@ function pickWeighted<T>(options: [T, number][], random: () => number = Math.ran
     return options[options.length - 1][0];
 }
 
+function articleForType(type: string): string {
+    const first = type.trim().charAt(0).toLowerCase();
+    return /[aeiou]/.test(first) ? 'an' : 'a';
+}
+
 /**
  * Id and type phrase per tweet.genx id_and_type rule and WEIGHTS:
- * militaryregistration=4, registration=3, militaryicao=2, icao=1
+ * militaryregistration=4, registration=3, militaryicao=2, icao=1.
+ * Registration is emitted as a hashtag (e.g. #N616LM).
  */
 function idAndType(ac: AircraftFields, random: () => number = Math.random): string {
     const registration = ac.r?.trim();
@@ -58,14 +64,15 @@ function idAndType(ac: AircraftFields, random: () => number = Math.random): stri
     const acType = ac.type?.trim();
     const isMilitary = Boolean(ac.isMilitary);
     const options: [string, number][] = [];
+    const regTag = registration ? `#${registration}` : '';
 
     if (isMilitary && registration) {
-        options.push([`${registration}, a military aircraft`, 4]);
-        if (acType) options.push([`${registration}, a military ${acType}`, 4]);
+        options.push([`${regTag}, a military aircraft`, 4]);
+        if (acType) options.push([`${regTag}, a military ${acType}`, 4]);
     }
     if (!isMilitary && registration) {
-        options.push([registration, 3]);
-        if (acType) options.push([`${registration}, a ${acType}`, 3]);
+        options.push([regTag, 3]);
+        if (acType) options.push([`${regTag}, ${articleForType(acType)} ${acType}`, 3]);
     }
     if (!registration) {
         options.push([`Aircraft with unknown registration, hex/ICAO ${icao}`, 1]);
@@ -95,36 +102,36 @@ function locationPhrase(props: ReverseGeoProperties | null, random: () => number
     return pickWeighted(options, random);
 }
 
-/** Optional "call sign X" if we have a distinct callsign */
+/** Optional "call sign #X" if we have a distinct callsign (hashtag) */
 function callSignPart(ac: AircraftFields): string {
     const call = ac.flight?.trim();
     const reg = ac.r?.trim();
     if (!call || call === reg) return '';
-    return ` call sign ${call}`;
+    return ` call sign #${call}`;
 }
 
-/** Optional "at X feet," */
+/** Optional "at X feet" (no trailing comma; joined with other clauses) */
 function altitudePart(ac: AircraftFields): string {
     const alt = ac.alt_baro;
     if (alt == null || alt === 'ground') return '';
     const n = typeof alt === 'number' ? Math.round(alt) : parseInt(String(alt), 10);
     if (Number.isNaN(n)) return '';
-    return ` at ${n} feet,`;
+    return ` at ${n} feet`;
 }
 
-/** Optional "speed X MPH," (API often gives knots; convert for readability) */
+/** Optional "speed X MPH" (API often gives knots; convert for readability) */
 function speedPart(ac: AircraftFields): string {
     const gs = ac.gs;
     if (gs == null || typeof gs !== 'number') return '';
     const mph = Math.round(gs * 1.15078);
-    return ` speed ${mph} MPH,`;
+    return ` speed ${mph} MPH`;
 }
 
-/** Optional "squawking X," */
+/** Optional "squawking X" */
 function squawkPart(ac: AircraftFields): string {
     const sq = ac.squawk;
     if (sq == null || String(sq).trim() === '') return '';
-    return ` squawking ${sq},`;
+    return ` squawking ${sq}`;
 }
 
 function landmarkPart(landmark: LandmarkInfo | null | undefined): string {
@@ -166,9 +173,9 @@ export function buildCirclingMessage(
     const landmark = landmarkPart(options?.landmark ?? null);
     const fire = firePart(options?.fire ?? null);
 
-    const clauseParts = [alt, speed, squawk].filter(Boolean).join(' ');
+    const clauseParts = [alt, speed, squawk].filter(Boolean).join(', ');
     const trailing = [landmark, fire].filter(Boolean).join('').trim();
-    const middle = clauseParts + (trailing ? (clauseParts ? ', ' : ' ') + trailing : '');
+    const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
     const main = loc
         ? `${id}${call} is circling over ${loc}${middle ? ' ' + middle : ''}`
         : `${id}${call} is circling${middle ? ' ' + middle : ''}`;
@@ -196,9 +203,9 @@ export function buildImagingMessage(
     const landmark = landmarkPart(options?.landmark ?? null);
     const fire = firePart(options?.fire ?? null);
 
-    const clauseParts = [alt, speed, squawk].filter(Boolean).join(' ');
+    const clauseParts = [alt, speed, squawk].filter(Boolean).join(', ');
     const trailing = [landmark, fire].filter(Boolean).join('').trim();
-    const middle = clauseParts + (trailing ? (clauseParts ? ', ' : ' ') + trailing : '');
+    const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
     const verb = loc
         ? `appears to be on an imaging/survey pattern over ${loc}${middle ? ' ' + middle : ''}`
         : `appears to be on an imaging/survey pattern${middle ? ' ' + middle : ''}`;
