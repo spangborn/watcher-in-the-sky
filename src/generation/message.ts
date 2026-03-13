@@ -87,11 +87,11 @@ function idAndType(ac: AircraftFields, random: () => number = Math.random): stri
 /** Location phrase from reverse geo (weighted like advisory-circular) */
 function locationPhrase(props: ReverseGeoProperties | null, random: () => number = Math.random): string {
     if (!props) return '';
-    const n = props.neighbourhood ?? '';
-    const loc = props.locality ?? '';
-    const county = props.county ?? '';
-    const localadmin = props.localadmin ?? '';
-    const name = props.name ?? props.label ?? '';
+    const n = (props.neighbourhood ?? '').trim();
+    const loc = (props.locality ?? '').trim();
+    const county = (props.county ?? '').trim();
+    const localadmin = (props.localadmin ?? '').trim();
+    const name = (props.name ?? props.label ?? '').trim();
     const options: [string, number][] = [];
     if (n && loc) options.push([`${n}, ${loc}`, 3]);
     if (n && county) options.push([`${n}, ${county}`, 3]);
@@ -139,7 +139,7 @@ function landmarkPart(landmark: LandmarkInfo | null | undefined): string {
     const dist = typeof landmark.distanceMiles === 'number'
         ? landmark.distanceMiles.toFixed(1)
         : String(landmark.distanceMiles);
-    return ` ${dist} miles from ${landmark.name}`;
+    return ` ${dist} miles from ${landmark.name.trim()}`;
 }
 
 function firePart(fire: FireInfo | null | undefined): string {
@@ -147,7 +147,12 @@ function firePart(fire: FireInfo | null | undefined): string {
     const dist = typeof fire.distanceMiles === 'number'
         ? fire.distanceMiles.toFixed(1)
         : String(fire.distanceMiles);
-    return ` ${dist} miles from the ${fire.name}`;
+    return ` ${dist} miles from the ${fire.name.trim()}`;
+}
+
+/** Collapse multiple spaces to one and trim (fixes API/concatenation spacing). */
+function normalizeSpaces(s: string): string {
+    return s.replace(/\s+/g, ' ').trim();
 }
 
 /** Optional: provide to get deterministic output (e.g. for tests). 0 = first option, 1 = last. */
@@ -181,7 +186,7 @@ export function buildCirclingMessage(
         ? `${id}${call} is circling over ${loc}${middleWithSpace}`
         : `${id}${call} is circling${middleWithSpace}`;
 
-    return `${main.trim()}\nView more: ${viewMoreUrl}`;
+    return `${normalizeSpaces(main)}\nView more: ${viewMoreUrl}`;
 }
 
 /**
@@ -212,5 +217,5 @@ export function buildImagingMessage(
         ? `appears to be on an imaging/survey pattern over ${loc}${middleWithSpace}`
         : `appears to be on an imaging/survey pattern${middleWithSpace}`;
 
-    return `${id}${call} ${verb.trim()}\nView more: ${viewMoreUrl}`;
+    return `${normalizeSpaces(`${id}${call} ${verb}`)}\nView more: ${viewMoreUrl}`;
 }
