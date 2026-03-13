@@ -9,8 +9,9 @@
  *   npx ts-node scripts/create-aircraft-db.ts [output.db]
  *   npx ts-node scripts/create-aircraft-db.ts path/to/aircraft.json [output.db]
  *
- * JSON format: object with ICAO (hex) keys and values like { r: "N12345", t: "B738", d: "Boeing 737-800" }
- * (r = registration, t = type code, d = description; we store both type and description).
+ * JSON format: object with ICAO (hex) keys and values like { r, t, d, m, e, c, o, ... }.
+ * We include every key present in the export. Known mappings: r=registration, t=type, d=description,
+ * m=manufacturer, e=serial, c=country, o=operator; other keys become columns by name.
  */
 
 import * as fs from 'fs';
@@ -25,70 +26,91 @@ const MICTRONICS_ZIP_URL = 'https://www.mictronics.de/aircraft-database/indexedD
 
 const argv = process.argv.slice(2);
 const jsonPath = argv[0]?.endsWith('.json') ? argv[0] : undefined;
-const outPath = argv.length === 0
-    ? path.join(process.cwd(), 'aircraft_info.db')
-    : argv.length === 1
-        ? (jsonPath ? path.join(process.cwd(), 'aircraft_info.db') : argv[0])
-        : argv[1];
+const outPath =
+    argv.length === 0
+        ? path.join(process.cwd(), 'aircraft_info.db')
+        : argv.length === 1
+            ? (jsonPath ? path.join(process.cwd(), 'aircraft_info.db') : argv[0])
+            : argv[1];
 
-interface MictronicsEntry {
-    r?: string;
-    d?: string;
-    t?: string;
+/** JSON key → SQL column name (so we use readable names for known short keys). */
+const KEY_TO_COLUMN: Record<string, string> = {
+    r: 'registration',
+    t: 'type',
+    d: 'description',
+    m: 'manufacturer',
+    e: 'serial',
+    c: 'country',
+    o: 'operator',
+};
+
+function sqlIdent(s: string): string {
+    return '`' + s.replace(/`/g, '``') + '`';
 }
 
-function buildDb(data: Record<string, MictronicsEntry>, outputPath: string): void {
-    const entries: [string, string | null, string | null, string | null][] = [];
+function buildDb(data: Record<string, Record<string, unknown>>, outputPath: string): void {
+    const allKeys = new Set<string>();
+    for (const entry of Object.values(data)) {
+        if (entry && typeof entry === 'object') {
+            for (const k of Object.keys(entry)) {
+                if (typeof (entry as Record<string, unknown>)[k] === 'string' || typeof (entry as Record<string, unknown>)[k] === 'number') {
+                    allKeys.add(k);
+                }
+            }
+        }
+    }
+    const jsonKeys = [...allKeys].sort();
+    const columns = ['icao', ...jsonKeys.map((k) => KEY_TO_COLUMN[k] ?? k)];
+    const safeColumns = columns.map((c) => sqlIdent(c));
+
+    const rows: (string | null)[][] = [];
     for (const [icao, entry] of Object.entries(data)) {
         if (!entry || typeof entry !== 'object') continue;
-        const reg = (entry.r ?? '').trim() || null;
-        const type = (entry.t ?? '').trim() || null;
-        const description = (entry.d ?? '').trim() || null;
         const key = icao.replace(/^~/, '').toUpperCase();
-        entries.push([key, reg, type, description]);
+        const row: (string | null)[] = [key];
+        for (const jk of jsonKeys) {
+            const v = (entry as Record<string, unknown>)[jk];
+            const s = v == null ? null : typeof v === 'string' ? (v.trim() || null) : String(v).trim() || null;
+            row.push(s);
+        }
+        rows.push(row);
     }
 
     const db = new sqlite3.Database(outputPath);
 
     db.serialize(() => {
         db.run('DROP TABLE IF EXISTS aircraft');
-        db.run(`
-            CREATE TABLE aircraft (
-                icao TEXT NOT NULL PRIMARY KEY,
-                registration TEXT,
-                type TEXT,
-                description TEXT
-            )
-        `);
+        const colDefs = safeColumns
+            .map((c, i) => (i === 0 ? `${c} TEXT NOT NULL PRIMARY KEY` : `${c} TEXT`))
+            .join(', ');
+        db.run(`CREATE TABLE aircraft (${colDefs})`);
         db.run('CREATE UNIQUE INDEX idx_aircraft_icao ON aircraft (icao)');
 
-        const insert = db.prepare(
-            'INSERT INTO aircraft (icao, registration, type, description) VALUES (?, ?, ?, ?)'
-        );
+        const placeholders = columns.map(() => '?').join(', ');
+        const insert = db.prepare(`INSERT INTO aircraft (${safeColumns.join(', ')}) VALUES (${placeholders})`);
         let done = 0;
-        for (let i = 0; i < entries.length; i++) {
-            const [key, reg, type, description] = entries[i];
-            insert.run(key, reg, type, description, (err: Error | null) => {
+        for (let i = 0; i < rows.length; i++) {
+            insert.run(rows[i], (err: Error | null) => {
                 if (err) console.error(err);
                 done++;
                 if (done % 100000 === 0) console.log(`Inserted ${done} records...`);
-                if (done === entries.length) {
+                if (done === rows.length) {
                     insert.finalize();
                     db.close((closeErr) => {
                         if (closeErr) console.error(closeErr);
-                        console.log(`Created ${outputPath} with ${entries.length} aircraft. Set AIRCRAFT_INFO_DB=${outputPath} in .env`);
+                        console.log(`Created ${outputPath} with ${rows.length} aircraft. Columns: ${columns.join(', ')}`);
                     });
                 }
             });
         }
-        if (entries.length === 0) {
+        if (rows.length === 0) {
             insert.finalize();
             db.close(() => console.log('No entries; created empty DB.'));
         }
     });
 }
 
-async function downloadAndExtract(): Promise<Record<string, MictronicsEntry>> {
+async function downloadAndExtract(): Promise<Record<string, Record<string, unknown>>> {
     console.log('Downloading Mictronics aircraft database...');
     const res = await fetch(MICTRONICS_ZIP_URL);
     if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
@@ -110,16 +132,16 @@ async function downloadAndExtract(): Promise<Record<string, MictronicsEntry>> {
     )[0];
     console.log(`Using ${jsonEntry.entryName}`);
     const raw = jsonEntry.getData().toString('utf-8');
-    return JSON.parse(raw) as Record<string, MictronicsEntry>;
+    return JSON.parse(raw) as Record<string, Record<string, unknown>>;
 }
 
 async function main(): Promise<void> {
-    let data: Record<string, MictronicsEntry>;
+    let data: Record<string, Record<string, unknown>>;
 
     if (jsonPath) {
         console.log(`Reading ${jsonPath}...`);
         const raw = fs.readFileSync(jsonPath, 'utf-8');
-        data = JSON.parse(raw) as Record<string, MictronicsEntry>;
+        data = JSON.parse(raw) as Record<string, Record<string, unknown>>;
     } else if (argv.length <= 1) {
         data = await downloadAndExtract();
     } else {
