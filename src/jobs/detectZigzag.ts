@@ -10,7 +10,7 @@ import { isNearbyAirport, reverse, getClosestLandmark } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
 import { TAR1090_URL, TIME_WINDOW } from '../constants';
 import { captureScreenshot } from '../screenshot/screenshot';
-import { buildImagingMessage, type ReverseGeoProperties } from '../generation/message';
+import { buildImagingMessage, buildScreenshotAlt, type ReverseGeoProperties } from '../generation/message';
 import { getRecord as getAircraftInfo } from '../aircraftInfo/aircraftInfo';
 import { incrementZigzag } from '../health/metrics';
 import { formatLocalTime } from '../helpers/dateUtils';
@@ -133,7 +133,8 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
             link,
             { landmark }
         );
-        const success = await postToBluesky(ac, message, screenshot_data);
+        const imageAlt = buildScreenshotAlt(reverseGeoProps, landmark, ac.flight);
+        const success = await postToBluesky(ac, message, screenshot_data, imageAlt);
 
         if (success) {
             try {

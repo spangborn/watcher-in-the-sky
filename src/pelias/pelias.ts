@@ -84,8 +84,10 @@ export async function getClosestLandmark(lat: number, lon: number): Promise<Clos
         if (!Array.isArray(features) || features.length === 0) return null;
         const f = features[0];
         const props = f?.properties ?? {};
-        const name = props.label ?? props.name ?? '';
-        if (!name) return null;
+        const raw = (props.name ?? props.label ?? '').trim();
+        if (!raw) return null;
+        // Use short name only (AC uses properties.name); strip trailing ", County, ST, USA" etc.
+        const name = raw.includes(',') ? raw.split(',')[0].trim() : raw;
         let distKm = props.distance;
         if (typeof distKm !== 'number' && f?.geometry?.coordinates?.length >= 2) {
             const [lon2, lat2] = f.geometry.coordinates;

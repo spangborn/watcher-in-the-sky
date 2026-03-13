@@ -5,7 +5,7 @@ import { isNearbyAirport, reverse, getClosestLandmark } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
 import { TAR1090_URL, TOTAL_CHANGE, TIME_WINDOW } from '../constants';
 import { captureScreenshot } from '../screenshot/screenshot';
-import { buildCirclingMessage, type ReverseGeoProperties } from '../generation/message';
+import { buildCirclingMessage, buildScreenshotAlt, type ReverseGeoProperties } from '../generation/message';
 import { getRecord as getAircraftInfo } from '../aircraftInfo/aircraftInfo';
 import { incrementCircling } from '../health/metrics';
 import { formatLocalTime } from '../helpers/dateUtils';
@@ -223,7 +223,8 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                     link,
                     { landmark }
                 );
-                const success = await postToBluesky(ac, message, screenshot_data);
+                const imageAlt = buildScreenshotAlt(reverseGeoProps, landmark, ac.flight);
+                const success = await postToBluesky(ac, message, screenshot_data, imageAlt);
 
                 if (success) {
                     try {

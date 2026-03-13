@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCirclingMessage } from './message';
+import { buildCirclingMessage, buildScreenshotAlt } from './message';
 
 const url = 'https://example.com/map?icao=ABC123';
 
@@ -461,5 +461,33 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
             expect(msg).toContain('5.0 miles from the Wildfire');
             expect(msg).toContain(url);
         });
+    });
+});
+
+describe('buildScreenshotAlt', () => {
+    it('includes flight and location when present', () => {
+        const alt = buildScreenshotAlt(
+            { locality: 'Salt Lake City' },
+            null,
+            'N12345'
+        );
+        expect(alt).toContain('Screenshot of the flight path of N12345');
+        expect(alt).toContain('over Salt Lake City');
+        expect(alt).toMatch(/\.$/);
+    });
+
+    it('includes landmark when present', () => {
+        const alt = buildScreenshotAlt(
+            { locality: 'LA' },
+            { name: 'Currant Creek', distanceMiles: 5.2 },
+            'N1'
+        );
+        expect(alt).toContain('over LA');
+        expect(alt).toContain('5.2 miles from Currant Creek');
+    });
+
+    it('uses "aircraft" when flight is missing', () => {
+        const alt = buildScreenshotAlt(null, null, null);
+        expect(alt).toBe('Screenshot of the flight path of aircraft.');
     });
 });

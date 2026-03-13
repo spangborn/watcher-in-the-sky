@@ -45,7 +45,7 @@ describe('pelias helpers', () => {
             data: {
                 features: [
                     {
-                        properties: { label: 'Place', distance: 10 },
+                        properties: { name: 'Place', distance: 10 },
                         geometry: { coordinates: [-111, 40] },
                     },
                 ],
@@ -55,6 +55,22 @@ describe('pelias helpers', () => {
         expect(lm).not.toBeNull();
         expect(lm!.name).toBe('Place');
         expect(lm!.distanceMiles).toBeCloseTo(6.2137, 3);
+    });
+
+    it('getClosestLandmark shortens long label to part before first comma', async () => {
+        getMock.mockResolvedValueOnce({
+            data: {
+                features: [
+                    {
+                        properties: { name: 'Currant Creek, Utah County, UT, USA', distance: 5 },
+                        geometry: { coordinates: [-111, 40] },
+                    },
+                ],
+            },
+        } as any);
+        const lm = await getClosestLandmark(40, -111);
+        expect(lm).not.toBeNull();
+        expect(lm!.name).toBe('Currant Creek');
     });
 });
 

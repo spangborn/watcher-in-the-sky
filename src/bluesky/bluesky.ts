@@ -13,7 +13,12 @@ export async function loginToBluesky(): Promise<void> {
     }
 }
 
-export async function postToBluesky(aircraft: any, message: string, screenshot_data?: Uint8Array): Promise<boolean> {
+export async function postToBluesky(
+    aircraft: any,
+    message: string,
+    screenshot_data?: Uint8Array,
+    imageAlt?: string
+): Promise<boolean> {
     const dryRun = BLUESKY_DRY_RUN || BLUESKY_DEBUG;
     if (dryRun) {
         log.info('\n--- BLUESKY DRY RUN (not posting) ---');
@@ -43,7 +48,7 @@ export async function postToBluesky(aircraft: any, message: string, screenshot_d
                 embed: {
                     $type: 'app.bsky.embed.images',
                     images: [{
-                        alt: `Screenshot of the flight path of the flight ${aircraft.flight}`,
+                        alt: imageAlt ?? `Screenshot of the flight path of the flight ${aircraft.flight}`,
                         image: data.blob,
                         aspectRatio: {
                             width: 1200,

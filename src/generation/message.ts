@@ -234,3 +234,26 @@ export function buildImagingMessage(
 
     return `${normalizeSpaces(`${id}${call} ${verb}`)}\n${viewMoreUrl}`;
 }
+
+/**
+ * Build alt text for the screenshot image (includes reverse geocode location and landmark).
+ */
+export function buildScreenshotAlt(
+    reverseGeoProps: ReverseGeoProperties | null,
+    landmark: LandmarkInfo | null | undefined,
+    flight: string | null | undefined
+): string {
+    const loc = locationPhrase(reverseGeoProps);
+    const flightPart = (flight?.trim()) || 'aircraft';
+    let alt = `Screenshot of the flight path of ${flightPart}`;
+    if (loc) alt += ` over ${loc}`;
+    if (landmark?.name) {
+        const dist =
+            typeof landmark.distanceMiles === 'number'
+                ? landmark.distanceMiles.toFixed(1)
+                : String(landmark.distanceMiles);
+        alt += `, ${dist} miles from ${landmark.name.trim()}`;
+    }
+    alt += '.';
+    return alt;
+}
