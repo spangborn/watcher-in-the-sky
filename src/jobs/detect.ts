@@ -12,50 +12,42 @@ import { formatLocalTime } from '../helpers/dateUtils';
 import * as log from '../log';
 
 
+/** Altitude (ft) below which we consider aircraft on ground; excluded from curviness. */
+const GROUND_ALT_FT = 0;
+
 export interface CurvyPeriodLogInfo {
     minutes: number;
     seconds: string;
 }
 
-export function findCurviestTimePeriod(
-        coords: { lat: number; lon: number; timestamp: number; r: string }[],
-        timeWindow: number,
-        hex?: string
-    ): { segment: { lat: number; lon: number; timestamp: number ; }[]; curviness: number; logInfo?: CurvyPeriodLogInfo } | null {
-    if (coords.length < 2) return null;
+/** Filter to airborne positions only (alt_baro > 0). */
+function filterAirborne<T extends { alt_baro?: number | null }>(coords: T[]): T[] {
+    return coords.filter((c) => (c.alt_baro ?? 0) > GROUND_ALT_FT);
+}
 
-    let maxCurviness = 0;
-    let curviestSegment: { lat: number; lon: number; timestamp: number }[] | null = null;
+/**
+ * Build the single 25-minute segment from recent coords (no sliding window).
+ * Excludes ground points.
+ */
+export function getCirclingSegment(
+    coords: { lat: number; lon: number; timestamp: number; r: string; alt_baro: number | null }[],
+    timeWindow: number
+): { segment: { lat: number; lon: number; timestamp: number }[]; curviness: number; logInfo?: CurvyPeriodLogInfo } | null {
+    const airborne = filterAirborne(coords);
+    if (airborne.length < 2) return null;
 
-    for (let i = 0; i < coords.length; i++) {
-        // Define the window: start at i, end where timestamp difference is <= timeWindow
-        const window = coords.slice(
-            i,
-            coords.findIndex(
-                (c, index) => index > i && c.timestamp - coords[i].timestamp > timeWindow
-            )
-        );
+    const segment = airborne.map((c) => ({ lat: c.lat, lon: c.lon, timestamp: c.timestamp }));
+    const curviness = calculateCurviness(segment);
 
-        // Calculate curviness of the window
-        const curviness = calculateCurviness(window);
-
-        if (curviness > maxCurviness) {
-            maxCurviness = curviness;
-            curviestSegment = window;
-        }
-    }
-
-    let logInfo: CurvyPeriodLogInfo | undefined;
-    if (curviestSegment && maxCurviness > TOTAL_CHANGE / 4) {
-        const timestampDifference = curviestSegment[curviestSegment.length - 1].timestamp - curviestSegment[0].timestamp;
-        logInfo = {
-            minutes: Math.floor(timestampDifference / 60000),
-            seconds: ((timestampDifference % 60000) / 1000).toFixed(0),
-        };
-    }
-    return curviestSegment
-        ? { segment: curviestSegment, curviness: maxCurviness, logInfo }
-        : null;
+    const first = segment[0];
+    const last = segment[segment.length - 1];
+    const durationMs = last.timestamp - first.timestamp;
+    const clampedMs = Math.min(durationMs, timeWindow);
+    const logInfo: CurvyPeriodLogInfo = {
+        minutes: Math.floor(clampedMs / 60000),
+        seconds: ((clampedMs % 60000) / 1000).toFixed(0),
+    };
+    return { segment, curviness, logInfo };
 }
 
 export function calculateCurviness(segment: { lat: number; lon: number }[]): number {
@@ -79,37 +71,34 @@ export function calculateCurviness(segment: { lat: number; lon: number }[]): num
     return Math.abs(totalChange);
 }
 
-/** Sub-window (ms) used to find the curviest part within the curviest period for centroid. */
-const CURVY_CENTROID_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
+/** Cumulative turn (degrees) at which we consider the aircraft "in the circle" for centroid. */
+const CIRCLE_START_TURN_DEG = 720;
 
 /**
- * Within a segment, find the sub-segment with highest curviness using a sliding time window.
- * Use this for centroid so the point is in the tight circling core, not diluted by entry/exit.
+ * Find the "circle start" index: first index where cumulative signed bearing-delta sum reaches ±720°.
+ * Returns the segment from that index to end for centroid.
  */
-export function getCurviestSubSegment(
-    segment: { lat: number; lon: number; timestamp: number }[],
-    timeWindowMs: number = CURVY_CENTROID_WINDOW_MS
+export function getCircleSegmentForCentroid(
+    segment: { lat: number; lon: number; timestamp: number }[]
 ): { lat: number; lon: number; timestamp: number }[] {
     if (segment.length < 2) return segment;
 
-    let maxCurviness = 0;
-    let curviest: typeof segment = segment;
-
-    for (let i = 0; i < segment.length; i++) {
-        const endIdx = segment.findIndex(
-            (c, idx) => idx > i && c.timestamp - segment[i].timestamp > timeWindowMs
-        );
-        const window = endIdx === -1 ? segment.slice(i) : segment.slice(i, endIdx);
-        if (window.length < 2) continue;
-
-        const curviness = calculateCurviness(window);
-        if (curviness > maxCurviness) {
-            maxCurviness = curviness;
-            curviest = window;
+    let cumulative = 0;
+    for (let i = 1; i < segment.length; i++) {
+        const { lat: lat1, lon: lon1 } = segment[i - 1];
+        const { lat: lat2, lon: lon2 } = segment[i];
+        const bearing1 = computeBearing(lat1, lon1, lat2, lon2);
+        const bearing2 =
+            i > 1 ? computeBearing(segment[i - 2].lat, segment[i - 2].lon, lat1, lon1) : 0;
+        let diff = bearing2 - bearing1;
+        if (diff > 180) diff -= 360;
+        if (diff < -180) diff += 360;
+        cumulative += diff;
+        if (Math.abs(cumulative) >= CIRCLE_START_TURN_DEG) {
+            return segment.slice(i);
         }
     }
-
-    return curviest;
+    return segment;
 }
 
 /**
@@ -141,10 +130,10 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
             // Retrieve the recent coordinates from the database
             const recentCoords = await getRecentCoordinates(hex, cutoff);
 
-            // Find the curviest 25-minute time period
-            const curvyPeriod = findCurviestTimePeriod(recentCoords, TIME_WINDOW, hex);
+            // Single 25-minute window, airborne only
+            const curvyPeriod = getCirclingSegment(recentCoords, TIME_WINDOW);
 
-            if (curvyPeriod?.logInfo) {
+            if (curvyPeriod?.logInfo && curvyPeriod.curviness > TOTAL_CHANGE / 4) {
                 const regFromCoords = recentCoords[0]?.r?.trim();
                 const regFromDb = regFromCoords ? null : (await getAircraftInfo(hex))?.registration ?? null;
                 const displayLabel = regFromCoords || regFromDb || hex || '?';
@@ -156,8 +145,8 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
             if (curvyPeriod && (await isCircling(curvyPeriod.segment))) {
                 incrementCircling();
                 const { segment } = curvyPeriod;
-                const curviestSub = getCurviestSubSegment(segment);
-                const centroid = calculateCentroid(curviestSub);
+                const centroidSegment = getCircleSegmentForCentroid(segment);
+                const centroid = calculateCentroid(centroidSegment);
 
                 try {
                     const isNearAirport = await isNearbyAirport(centroid.lat, centroid.lon, {});

@@ -48,12 +48,12 @@ export function insertFlightData(
     );
 }
 
-export function getRecentCoordinates(hex: string, cutoff: number): Promise<{ lat: number; lon: number; timestamp: number; r: string }[]> {
+export function getRecentCoordinates(hex: string, cutoff: number): Promise<{ lat: number; lon: number; timestamp: number; r: string; alt_baro: number | null }[]> {
     return new Promise((resolve, reject) => {
         db.all(
-            `SELECT lat, lon, timestamp, r FROM aircraft_data WHERE hex = ? AND timestamp >= ? ORDER BY timestamp ASC`,
+            `SELECT lat, lon, timestamp, r, alt_baro FROM aircraft_data WHERE hex = ? AND timestamp >= ? ORDER BY timestamp ASC`,
             [hex, cutoff],
-            (err: Error | null, rows: { lat: number; lon: number; timestamp: number; r: string }[]) => {
+            (err: Error | null, rows: { lat: number; lon: number; timestamp: number; r: string; alt_baro: number | null }[]) => {
                 if (err) {
                     reject(err);
                 } else {

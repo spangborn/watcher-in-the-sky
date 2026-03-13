@@ -1,6 +1,5 @@
 /**
- * Grammar-style message generation for circling aircraft posts,
- * matching https://gitlab.com/jjwiseman/advisory-circular-rs (tweet.genx).
+ * Grammar-style message generation for circling aircraft posts.
  * Weights: militaryregistration=4, registration=3, militaryicao=2, icao=1.
  */
 
@@ -84,7 +83,7 @@ function idAndType(ac: AircraftFields, random: () => number = Math.random): stri
     return pickWeighted(options, random);
 }
 
-/** Location phrase from reverse geo (weighted like advisory-circular) */
+/** Location phrase from reverse geo (weighted). */
 function locationPhrase(props: ReverseGeoProperties | null, random: () => number = Math.random): string {
     if (!props) return '';
     const n = (props.neighbourhood ?? '').trim();
@@ -159,7 +158,7 @@ function normalizeSpaces(s: string): string {
 export type RandomFn = () => number;
 
 /**
- * Build a circling message matching advisory-circular-rs tweet.genx:
+ * Build a circling message:
  * "[id][ call sign X] is circling over [location][ at X feet,][ speed X MPH,][ squawking X,][ landmark][ fire]\nView more: url"
  */
 export function buildCirclingMessage(
