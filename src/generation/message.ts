@@ -176,9 +176,10 @@ export function buildCirclingMessage(
     const clauseParts = [alt, speed, squawk].filter(Boolean).join(', ');
     const trailing = [landmark, fire].filter(Boolean).join('').trim();
     const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
+    const middleWithSpace = middle ? (middle.startsWith(' ') ? middle : ' ' + middle) : '';
     const main = loc
-        ? `${id}${call} is circling over ${loc}${middle ? ' ' + middle : ''}`
-        : `${id}${call} is circling${middle ? ' ' + middle : ''}`;
+        ? `${id}${call} is circling over ${loc}${middleWithSpace}`
+        : `${id}${call} is circling${middleWithSpace}`;
 
     return `${main.trim()}\nView more: ${viewMoreUrl}`;
 }
@@ -206,9 +207,10 @@ export function buildImagingMessage(
     const clauseParts = [alt, speed, squawk].filter(Boolean).join(', ');
     const trailing = [landmark, fire].filter(Boolean).join('').trim();
     const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
+    const middleWithSpace = middle ? (middle.startsWith(' ') ? middle : ' ' + middle) : '';
     const verb = loc
-        ? `appears to be on an imaging/survey pattern over ${loc}${middle ? ' ' + middle : ''}`
-        : `appears to be on an imaging/survey pattern${middle ? ' ' + middle : ''}`;
+        ? `appears to be on an imaging/survey pattern over ${loc}${middleWithSpace}`
+        : `appears to be on an imaging/survey pattern${middleWithSpace}`;
 
     return `${id}${call} ${verb.trim()}\nView more: ${viewMoreUrl}`;
 }

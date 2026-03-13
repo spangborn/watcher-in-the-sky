@@ -4,8 +4,10 @@ FROM node:22 as base
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Runtime deps + Chromium for Puppeteer
+# Build tools for native addons (e.g. sqlite3) + runtime deps + Chromium for Puppeteer
 RUN apt-get update && apt-get install -y \
+  build-essential \
+  python3 \
   fonts-liberation \
   libasound2 \
   libatk-bridge2.0-0 \
@@ -33,6 +35,9 @@ WORKDIR /home/node/app
 
 COPY package*.json ./
 
+# Force sqlite3 to build from source so it links against this image's glibc (2.36).
+# Prebuilds are often built on glibc 2.38+ and fail with "version `GLIBC_2.38' not found".
+ENV npm_config_build_from_source=true
 RUN npm i
 
 COPY . .
@@ -55,6 +60,7 @@ ENV DATA_DIR=/home/node/app/data
 
 EXPOSE 3000
 
+# Verify native deps (e.g. sqlite3) load in this image before we ship it
 RUN npm run test
 
 CMD ["npm", "run", "start"]
