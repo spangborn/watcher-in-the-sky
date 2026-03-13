@@ -179,7 +179,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                 }
 
                 const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-                const link = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}`;
+                const link = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}&zoom=13`;
                 // Screenshot URL is separate: center and zoom for framing.
                 const screenshotUrl = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}&zoom=13&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}&hideButtons&hideSidebar&screenshot&nowebgl`;
 

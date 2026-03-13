@@ -175,7 +175,7 @@ export type RandomFn = () => number;
 
 /**
  * Build a circling message:
- * "[id][ call sign X] is circling over [location][ at X feet,][ speed X MPH,][ squawking X,][ landmark][ fire]\nView more: url"
+ * "[id][ call sign X] is circling over [location][ at X feet,][ speed X MPH,][ squawking X,][ landmark][ fire]\nurl"
  */
 export function buildCirclingMessage(
     ac: AircraftFields,
@@ -201,12 +201,12 @@ export function buildCirclingMessage(
         ? `${id}${call} is circling over ${loc}${middleWithSpace}`
         : `${id}${call} is circling${middleWithSpace}`;
 
-    return `${normalizeSpaces(main)}\nView more: ${viewMoreUrl}`;
+    return `${normalizeSpaces(main)}\n${viewMoreUrl}`;
 }
 
 /**
  * Build a message for imaging/survey (zig-zag) pattern:
- * "[id][ call sign X] appears to be on an imaging/survey pattern over [location][ at X feet,]...\nView more: url"
+ * "[id][ call sign X] appears to be on an imaging/survey pattern over [location][ at X feet,]...\nurl"
  */
 export function buildImagingMessage(
     ac: AircraftFields,
@@ -232,5 +232,5 @@ export function buildImagingMessage(
         ? `appears to be on an imaging/survey pattern over ${loc}${middleWithSpace}`
         : `appears to be on an imaging/survey pattern${middleWithSpace}`;
 
-    return `${normalizeSpaces(`${id}${call} ${verb}`)}\nView more: ${viewMoreUrl}`;
+    return `${normalizeSpaces(`${id}${call} ${verb}`)}\n${viewMoreUrl}`;
 }
