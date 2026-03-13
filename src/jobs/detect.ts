@@ -190,16 +190,16 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                     ? [...recentCoords].reverse().find((c) => c.r != null && c.r.trim() !== '')?.r ?? null
                     : null;
                 let registration = rFromApi ?? rFromHistory ?? null;
-                // Aircraft type: use "t" (from API); "type" is message type (adsb_icao, mlat, etc.)
-                let aircraftType = ac.t ?? null;
-                // Fill in from Mictronics aircraft DB when missing
-                if ((registration == null || aircraftType == null) && hex) {
+                // Aircraft type: prefer API description (type_desc/desc), then Mictronics description, then type code, then API "t"
+                let aircraftType = ac.type_desc ?? ac.desc ?? ac.t ?? null;
+                if (hex) {
                     const mictronics = await getAircraftInfo(hex);
                     if (mictronics) {
                         registration = registration ?? mictronics.registration ?? null;
                         const desc = mictronics.description ?? null;
                         const typ = mictronics.type ?? null;
-                        aircraftType = aircraftType ?? (desc && typ ? `${desc} (${typ})` : desc ?? typ ?? null);
+                        aircraftType = aircraftType ?? desc ?? typ ?? ac.t ?? null;
+                        if (desc && typ && aircraftType === desc) aircraftType = `${desc} (${typ})`;
                     }
                 }
                 if (await wasPostedRecently(hex)) {

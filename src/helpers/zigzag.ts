@@ -1,17 +1,17 @@
 import { computeBearing } from './coordinateUtils';
 
 /** Minimum turn angle (degrees) to count as a leg reversal. Imaging uses ~180°; circuits use ~90°. */
-const MIN_TURN_DEG = 120;
-/** Minimum number of alternating reversals (parallel legs) for imaging pattern. 5 reversals = 6 legs. */
-const MIN_REVERSALS = 5;
-/** Minimum points between reversals (sustained leg); filters tight circuits. */
-const MIN_POINTS_PER_LEG = 6;
+const MIN_TURN_DEG = 130;
+/** Minimum number of alternating reversals (parallel legs) for imaging pattern. 6 reversals = 7 legs. */
+const MIN_REVERSALS = 6;
+/** Minimum points between reversals (sustained leg); filters tight circuits and noisy tracks. */
+const MIN_POINTS_PER_LEG = 8;
 /** Turn must be near 180° (opposite direction); circles have ~90° turns. */
-const MIN_OPPOSITE_DEG = 140;
+const MIN_OPPOSITE_DEG = 155;
 /** Max bearing spread (degrees) for legs in the same direction to count as parallel. */
-const PARALLEL_TOLERANCE_DEG = 20;
+const PARALLEL_TOLERANCE_DEG = 15;
 /** Min angle (degrees) between the two leg directions for imaging (should be ~180). */
-const MIN_OPPOSITE_LEG_DEG = 162;
+const MIN_OPPOSITE_LEG_DEG = 168;
 
 /**
  * Normalize bearing difference to -180..180.

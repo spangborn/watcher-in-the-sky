@@ -12,7 +12,11 @@ export interface AircraftApi {
     alt_baro?: number | string | null;
     lat?: number;
     lon?: number;
+    /** ICAO type code (e.g. CRUZ, B738). */
     t?: string | null;
+    /** Human-readable type description (e.g. "2017 CSA PS-28 Cruiser"). Some APIs return this. */
+    type_desc?: string | null;
+    desc?: string | null;
     gs?: number | null;
     squawk?: string | null;
     dbFlags?: number | null;
