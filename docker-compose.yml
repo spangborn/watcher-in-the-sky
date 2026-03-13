@@ -17,7 +17,7 @@ services:
       - "3000:3000"
     environment:
       - TZ=America/Denver
-      - AIRCRAFT_INFO_DB=/home/node/app/data/aircraft_info.db
+      - DATA_DIR=/home/node/app/data
 
 volumes:
   aircraft_db:

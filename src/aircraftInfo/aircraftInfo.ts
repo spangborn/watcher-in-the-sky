@@ -12,9 +12,11 @@ import { formatLocalTime } from '../helpers/dateUtils';
 let db: sqlite3.Database | null = null;
 let dbPath: string | null = null;
 
-/** Resolve path at runtime so tests can override process.env.AIRCRAFT_INFO_DB. Same default as constants. */
+/** Resolve path at runtime so tests can override process.env.AIRCRAFT_INFO_DB. Uses DATA_DIR when AIRCRAFT_INFO_DB unset. */
 function getPathEnv(): string {
-    return process.env.AIRCRAFT_INFO_DB === undefined ? './aircraft_info.db' : process.env.AIRCRAFT_INFO_DB;
+    if (process.env.AIRCRAFT_INFO_DB !== undefined) return process.env.AIRCRAFT_INFO_DB;
+    const dataDir = (process.env.DATA_DIR || './data').replace(/\/$/, '');
+    return dataDir + '/aircraft_info.db';
 }
 
 function getResolvedDbPath(): string {

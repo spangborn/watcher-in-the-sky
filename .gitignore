@@ -12,6 +12,7 @@ lerna-debug.log*
 # Aircraft DB (position history) and Mictronics-derived lookup DB
 aircraft.db
 aircraft_info.db
+data/
 
 # Env files
 .env

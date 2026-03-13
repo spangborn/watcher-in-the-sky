@@ -1,6 +1,13 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import sqlite3 from 'sqlite3';
+import { TRACKING_DB } from '../constants';
 
-const db = new sqlite3.Database('./aircraft.db');
+const dir = path.dirname(TRACKING_DB);
+if (dir && dir !== '.') {
+    fs.mkdirSync(dir, { recursive: true });
+}
+const db = new sqlite3.Database(TRACKING_DB);
 
 const POST_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
