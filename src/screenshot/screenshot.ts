@@ -34,7 +34,12 @@ export async function captureScreenshot(hex: string, url: string): Promise<Uint8
 
         await page.evaluate(() => {
             let sidebar = document.querySelector('#selected_infoblock');
-            sidebar?.parentNode?.removeChild(sidebar)
+            sidebar?.parentNode?.removeChild(sidebar);
+        });
+
+        await page.evaluate(() => {
+            document.getElementById('altitude_chart')?.remove();
+            document.querySelectorAll('.ol-scale-line, .ol-scale-bar').forEach((el) => el.remove());
         });
 
         // Capture screenshot
