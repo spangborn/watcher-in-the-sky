@@ -111,7 +111,9 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
             const mictronics = await getAircraftInfo(hex);
             if (mictronics) {
                 registration = registration ?? mictronics.registration ?? null;
-                aircraftType = aircraftType ?? mictronics.description ?? mictronics.type ?? null;
+                const desc = mictronics.description ?? null;
+                const typ = mictronics.type ?? null;
+                aircraftType = aircraftType ?? (desc && typ ? `${desc} (${typ})` : desc ?? typ ?? null);
             }
         }
 
