@@ -90,7 +90,7 @@ function locationPhrase(props: ReverseGeoProperties | null, random: () => number
     const loc = (props.locality ?? '').trim();
     const county = (props.county ?? '').trim();
     const localadmin = (props.localadmin ?? '').trim();
-    const name = (props.name ?? props.label ?? '').trim();
+    const name = (props.name ?? '').trim();
 
     const norm = (s: string) => s.trim().toLowerCase();
     const isDistinct = (a: string, b: string) => a && b && norm(a) !== norm(b);
