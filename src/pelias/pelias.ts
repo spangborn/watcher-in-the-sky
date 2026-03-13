@@ -28,7 +28,7 @@ const AIRPORT_NEARBY_RADIUS_KM = 5;
 
 /**
  * Returns true if an aerodrome (airport) is within AIRPORT_NEARBY_RADIUS_KM of the point.
- * Uses Pelias /v1/nearby with categories=transport:air:aerodrome.
+ * Uses Pelias /v1/nearby with categories=aeroway:aerodrome,transport:air:aerodrome (OR) to support both taxonomies.
  * Requires Pelias to be built with venue/POI data that includes airports (e.g. whosonfirst).
  */
 export async function isNearbyAirport(lat: number, lon: number, options: Record<string, unknown> = {}): Promise<boolean> {
@@ -37,7 +37,7 @@ export async function isNearbyAirport(lat: number, lon: number, options: Record<
     const params: Record<string, string> = {
         'point.lat': String(lat),
         'point.lon': String(lon),
-        'categories': 'transport:air:aerodrome',
+        'categories': 'aeroway:aerodrome,transport:air:aerodrome',
         'size': '10',
         'boundary.circle.radius': String(AIRPORT_NEARBY_RADIUS_KM),
         ...Object.fromEntries(

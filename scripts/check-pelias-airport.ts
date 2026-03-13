@@ -1,6 +1,6 @@
 /**
- * Check whether a given point (default: Logan-Cache Airport) returns an aerodrome
- * from your Pelias instance. Run with:
+ * Check whether points (default: six Utah airports) return aerodromes from your Pelias instance.
+ * Run with:
  *   npx ts-node scripts/check-pelias-airport.ts
  *   npx ts-node scripts/check-pelias-airport.ts 41.7881 -111.8509
  *
@@ -10,8 +10,31 @@
 import 'dotenv/config';
 import axios from 'axios';
 
-const LOGAN_CACHE_LAT = 41.7881;
-const LOGAN_CACHE_LON = -111.8509;
+const AIRPORTS: { name: string; lat: number; lon: number }[] = [
+    { name: 'KSLC (Salt Lake City Intl)', lat: 40.7883, lon: -111.9778 },
+    { name: 'U42 (South Valley Regional)', lat: 40.6195, lon: -111.9929 },
+    { name: 'Provo Airport (KPVU)', lat: 40.219, lon: -111.722 },
+    { name: 'Spanish Fork Airport (KSPK)', lat: 40.14194, lon: -111.66333 },
+    { name: 'Logan-Cache Airport (LGU)', lat: 41.7881, lon: -111.8509 },
+    { name: 'Ogden-Hinckley Airport (KOGD)', lat: 41.19556, lon: -112.01306 },
+];
+
+const CATEGORIES = 'aeroway:aerodrome,transport:air:aerodrome';
+const RADIUS_KM = '5';
+
+async function checkNearby(base: string, lat: number, lon: number): Promise<{ count: number; firstLabel?: string }> {
+    const url = new URL('/v1/nearby', base);
+    url.searchParams.set('point.lat', String(lat));
+    url.searchParams.set('point.lon', String(lon));
+    url.searchParams.set('categories', CATEGORIES);
+    url.searchParams.set('size', '10');
+    url.searchParams.set('boundary.circle.radius', RADIUS_KM);
+    const res = await axios.get(url.toString());
+    const features = res.data?.features ?? [];
+    const first = features[0];
+    const firstLabel = first?.properties?.label ?? first?.properties?.name ?? undefined;
+    return { count: features.length, firstLabel };
+}
 
 async function main(): Promise<void> {
     const base = process.env.PELIAS_INSTANCE?.trim();
@@ -20,24 +43,55 @@ async function main(): Promise<void> {
         process.exit(1);
     }
 
-    const lat = process.argv[2] ? parseFloat(process.argv[2]) : LOGAN_CACHE_LAT;
-    const lon = process.argv[3] ? parseFloat(process.argv[3]) : LOGAN_CACHE_LON;
-    if (Number.isNaN(lat) || Number.isNaN(lon)) {
+    const latArg = process.argv[2];
+    const lonArg = process.argv[3];
+    const singlePoint = latArg != null && lonArg != null && !Number.isNaN(parseFloat(latArg)) && !Number.isNaN(parseFloat(lonArg));
+
+    if (singlePoint) {
+        const lat = parseFloat(latArg!);
+        const lon = parseFloat(lonArg!);
+        await runSinglePoint(base, lat, lon);
+        return;
+    }
+
+    if (latArg != null || lonArg != null) {
         console.error('Usage: npx ts-node scripts/check-pelias-airport.ts [lat] [lon]');
         process.exit(1);
     }
 
-    console.log(`Checking Pelias at ${base} for point (${lat}, ${lon})${lat === LOGAN_CACHE_LAT && lon === LOGAN_CACHE_LON ? ' (Logan-Cache Airport)' : ''}...\n`);
+    // Test all airports
+    console.log(`Pelias: ${base}`);
+    console.log(`Query: /v1/nearby?categories=${CATEGORIES}&boundary.circle.radius=${RADIUS_KM}km\n`);
+    let passed = 0;
+    let failed = 0;
+    for (const apt of AIRPORTS) {
+        try {
+            const { count, firstLabel } = await checkNearby(base, apt.lat, apt.lon);
+            const ok = count > 0;
+            if (ok) passed++;
+            else failed++;
+            const status = ok ? '✓' : '✗';
+            const detail = ok ? ` → ${firstLabel ?? 'aerodrome'}` : ' → NOT FOUND (would not filter)';
+            console.log(`${status} ${apt.name}: ${count} feature(s)${detail}`);
+        } catch (err: unknown) {
+            failed++;
+            console.log(`✗ ${apt.name}: ${err instanceof Error ? err.message : err}`);
+        }
+    }
+    console.log(`\n${passed}/${AIRPORTS.length} airports returned aerodromes. ${failed} missing.`);
+}
 
-    // 1) Nearby with aerodrome category (what the app uses)
+async function runSinglePoint(base: string, lat: number, lon: number): Promise<void> {
+    console.log(`Checking Pelias at ${base} for point (${lat}, ${lon})...\n`);
+
     const nearbyUrl = new URL('/v1/nearby', base);
     nearbyUrl.searchParams.set('point.lat', String(lat));
     nearbyUrl.searchParams.set('point.lon', String(lon));
-    nearbyUrl.searchParams.set('categories', 'transport:air:aerodrome');
+    nearbyUrl.searchParams.set('categories', CATEGORIES);
     nearbyUrl.searchParams.set('size', '10');
-    nearbyUrl.searchParams.set('boundary.circle.radius', '5');
+    nearbyUrl.searchParams.set('boundary.circle.radius', RADIUS_KM);
 
-    console.log('1) Nearby (categories=transport:air:aerodrome, radius=5km, Pelias max):');
+    console.log('1) Nearby (categories=aeroway:aerodrome,transport:air:aerodrome, radius=5km):');
     console.log('   ', nearbyUrl.toString());
     try {
         const nearbyRes = await axios.get(nearbyUrl.toString());
@@ -50,20 +104,12 @@ async function main(): Promise<void> {
             const catList = Array.isArray(cats) ? cats.join(', ') : String(cats);
             console.log(`   [${i + 1}] ${name}`);
             console.log(`       categories/layer: ${catList || (props.layer ?? '—')}`);
-            if (props.addendum?.osm) {
-                console.log('       addendum.osm:', JSON.stringify(props.addendum.osm).slice(0, 120) + '...');
-            }
         });
-        if (features.length === 0) {
-            console.log('   → No aerodromes found; aircraft near this point would NOT be filtered as "near airport".');
-        } else {
-            console.log('   → Aerodrome(s) found; aircraft near this point WOULD be filtered.');
-        }
+        console.log(features.length === 0 ? '   → No aerodromes found.' : '   → Aerodrome(s) found; would filter.');
     } catch (err: any) {
         console.error('   Error:', err.message || err);
     }
 
-    // 2) Reverse at the same point (to see what Pelias returns for the location)
     console.log('\n2) Reverse (layers=coarse,venue) at same point:');
     const reverseUrl = new URL('/v1/reverse', base);
     reverseUrl.searchParams.set('point.lat', String(lat));
@@ -77,34 +123,10 @@ async function main(): Promise<void> {
         revFeatures.slice(0, 3).forEach((f: any, i: number) => {
             const props = f?.properties ?? {};
             const name = props.label ?? props.name ?? '—';
-            const layer = props.layer ?? '—';
-            console.log(`   [${i + 1}] ${name} (layer: ${layer})`);
+            console.log(`   [${i + 1}] ${name} (layer: ${props.layer ?? '—'})`);
         });
     } catch (err: any) {
         console.error('   Error:', err.message || err);
-    }
-
-    // 3) Optional: search by name to see if Logan-Cache exists at all
-    if (lat === LOGAN_CACHE_LAT && lon === LOGAN_CACHE_LON) {
-        console.log('\n3) Search (text=Logan-Cache Airport):');
-        const searchUrl = new URL('/v1/search', base);
-        searchUrl.searchParams.set('text', 'Logan-Cache Airport');
-        searchUrl.searchParams.set('size', '5');
-        console.log('   ', searchUrl.toString());
-        try {
-            const searchRes = await axios.get(searchUrl.toString());
-            const searchFeatures = searchRes.data?.features ?? [];
-            console.log('   Features returned:', searchFeatures.length);
-            searchFeatures.forEach((f: any, i: number) => {
-                const props = f?.properties ?? {};
-                const name = props.label ?? props.name ?? '—';
-                const layer = props.layer ?? '—';
-                const cat = (props.addendum?.osm?.category ?? props.category ?? []);
-                console.log(`   [${i + 1}] ${name} (layer: ${layer}, category: ${JSON.stringify(cat)})`);
-            });
-        } catch (err: any) {
-            console.error('   Error:', err.message || err);
-        }
     }
 }
 
