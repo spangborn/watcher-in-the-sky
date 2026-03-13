@@ -30,7 +30,7 @@ function filterAirborne<T extends { alt_baro?: number | null }>(coords: T[]): T[
  * Excludes ground points.
  */
 export function getCirclingSegment(
-    coords: { lat: number; lon: number; timestamp: number; r: string; alt_baro: number | null }[],
+    coords: { lat: number; lon: number; timestamp: number; r: string | null; alt_baro: number | null }[],
     timeWindow: number
 ): { segment: { lat: number; lon: number; timestamp: number }[]; curviness: number; logInfo?: CurvyPeriodLogInfo } | null {
     const airborne = filterAirborne(coords);
@@ -106,7 +106,7 @@ export function getCircleSegmentForCentroid(
  * @param segment Segment of the flight path with timestamps.
  * @returns Whether the flight is circling based on its curviness.
  */
-async function isCircling(segment: { lat: number; lon: number }[]): Promise<boolean> {
+function isCircling(segment: { lat: number; lon: number }[]): boolean {
     const curviness = calculateCurviness(segment);
     return curviness >= TOTAL_CHANGE;
 }
@@ -142,7 +142,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                 log.dim(`Flight: ${displayLabel} Curviness: ${curvinessStr} Window Length: ${curvyPeriod.logInfo.minutes} minutes and ${curvyPeriod.logInfo.seconds} seconds${linkPart}`);
             }
 
-            if (curvyPeriod && (await isCircling(curvyPeriod.segment))) {
+            if (curvyPeriod && isCircling(curvyPeriod.segment)) {
                 incrementCircling();
                 const { segment } = curvyPeriod;
                 const centroidSegment = getCircleSegmentForCentroid(segment);
@@ -153,12 +153,12 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                     if (isNearAirport) {
                         await clearAircraft(hex);
                         log.warn(`Aircraft ${hex} ${rFromApi} was circling near airport, not posting.`);
-                        return;
+                        continue;
                     }
                 } catch (err) {
                     log.warn(`Pelias airport check failed (skipping post to be safe): ${err}`);
                     await clearAircraft(hex);
-                    return;
+                    continue;
                 }
 
                 let reverseGeoProps: ReverseGeoProperties | null = null;
@@ -205,7 +205,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                 if (await wasPostedRecently(hex)) {
                     log.warn(`Aircraft ${hex} was posted in the last 30 minutes, skipping.`);
                     await clearAircraft(hex);
-                    return;
+                    continue;
                 }
 
                 const message = buildCirclingMessage(
@@ -226,7 +226,11 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                 const success = await postToBluesky(ac, message, screenshot_data);
 
                 if (success) {
-                    await recordPosted(hex);
+                    try {
+                        await recordPosted(hex);
+                    } catch (err) {
+                        log.warn(`Failed to record post time for ${hex}: ${err}`);
+                    }
                     log.success(`Posting to Bsky: ${message}`);
                     await clearAircraft(hex);
                 }

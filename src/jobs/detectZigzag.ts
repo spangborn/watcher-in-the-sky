@@ -135,7 +135,11 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
         const success = await postToBluesky(ac, message, screenshot_data);
 
         if (success) {
-            await recordPosted(hex);
+            try {
+                await recordPosted(hex);
+            } catch (err) {
+                log.warn(`Failed to record post time for ${hex}: ${err}`);
+            }
             log.success(`Posting to Bsky (imaging): ${message}`);
             await clearAircraft(hex);
         }

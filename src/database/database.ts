@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import sqlite3 from 'sqlite3';
 import { TRACKING_DB } from '../constants';
+import * as log from '../log';
 
 const dir = path.dirname(TRACKING_DB);
 if (dir && dir !== '.') {
@@ -43,17 +44,17 @@ export function insertFlightData(
         `INSERT OR IGNORE INTO aircraft_data (hex, timestamp, r, alt_baro, lat, lon) VALUES (?, ?, ?, ?, ?, ?)`,
         [hex, timestamp, r, alt_baro, lat, lon],
         (err: Error | null) => { // Explicitly type `err`
-            if (err) console.error('Database insert error:', err.message);
+            if (err) log.err(`Database insert error: ${err.message}`);
         }
     );
 }
 
-export function getRecentCoordinates(hex: string, cutoff: number): Promise<{ lat: number; lon: number; timestamp: number; r: string; alt_baro: number | null }[]> {
+export function getRecentCoordinates(hex: string, cutoff: number): Promise<{ lat: number; lon: number; timestamp: number; r: string | null; alt_baro: number | null }[]> {
     return new Promise((resolve, reject) => {
         db.all(
             `SELECT lat, lon, timestamp, r, alt_baro FROM aircraft_data WHERE hex = ? AND timestamp >= ? ORDER BY timestamp ASC`,
             [hex, cutoff],
-            (err: Error | null, rows: { lat: number; lon: number; timestamp: number; r: string; alt_baro: number | null }[]) => {
+            (err: Error | null, rows: { lat: number; lon: number; timestamp: number; r: string | null; alt_baro: number | null }[]) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -67,7 +68,7 @@ export function getRecentCoordinates(hex: string, cutoff: number): Promise<{ lat
 export function pruneOldRecords(cutoff: number): void {
     db.run(`DELETE FROM aircraft_data WHERE timestamp < ?`, [cutoff], (err: Error | null) => {
         if (err) {
-            console.error('Error pruning old records:', err.message);
+            log.err(`Error pruning old records: ${err.message}`);
         } else {
             //console.log('Old records pruned successfully.');
         }
@@ -78,7 +79,7 @@ export function clearAircraft(hex: string): Promise<void> {
     return new Promise((resolve, reject) => {
         db.run(`DELETE FROM aircraft_data WHERE hex = ?`, [hex], (err: Error | null) => {
             if (err) {
-                console.error('Error removing aircraft from history:', err.message);
+                log.err(`Error removing aircraft from history: ${err.message}`);
             }
             resolve();
         });

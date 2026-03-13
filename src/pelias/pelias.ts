@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { PELIAS_INSTANCE } from '../constants';
+import * as log from '../log';
 
 /** Closest venue/landmark from Pelias nearby (for message text). Distance in km from API, returned as miles. */
 export interface ClosestLandmark {
@@ -13,12 +14,12 @@ export async function reverse(lat: number, lon: number, options: Record<string, 
     Object.entries({ ...options, 'point.lat': lat, 'point.lon': lon, "layers": "coarse" }).forEach(([key, value]) => {
         requestUrl.searchParams.append(key, String(value));
     });
-    console.log(`Querying ${requestUrl}`);
+    log.info(`Querying ${requestUrl}`);
     try {
         const response = await axios.get(requestUrl.toString());
         return response.data;
     } catch (error: any) {
-        console.error('Error during reverse query:', error.message);
+        log.err(`Error during reverse query: ${error.message}`);
         throw error;
     }
 }
@@ -47,12 +48,12 @@ export async function isNearbyAirport(lat: number, lon: number, options: Record<
     Object.entries(params).forEach(([key, value]) => {
         requestUrl.searchParams.set(key, value);
     });
-    console.log(`Querying ${requestUrl}`);
+    log.info(`Querying ${requestUrl}`);
     try {
         const response = await axios.get(requestUrl.toString());
         return (response.data?.features?.length ?? 0) > 0;
     } catch (error: unknown) {
-        console.error('Error during airport nearby query:', error instanceof Error ? error.message : error);
+        log.err(`Error during airport nearby query: ${error instanceof Error ? error.message : error}`);
         throw error;
     }
 }
@@ -93,7 +94,7 @@ export async function getClosestLandmark(lat: number, lon: number): Promise<Clos
         const distanceMiles = typeof distKm === 'number' ? distKm * 0.621371 : 0;
         return { name, distanceMiles };
     } catch (error: any) {
-        console.error('Error fetching closest landmark:', error.message);
+        log.err(`Error fetching closest landmark: ${error.message}`);
         return null;
     }
 }

@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import sqlite3 from 'sqlite3';
 import { formatLocalTime } from '../helpers/dateUtils';
+import * as log from '../log';
 
 let db: sqlite3.Database | null = null;
 let dbPath: string | null = null;
@@ -47,7 +48,7 @@ function getDb(): sqlite3.Database | null {
         db = new sqlite3.Database(resolvedPath, sqlite3.OPEN_READONLY);
         return db;
     } catch (e) {
-        console.error('Aircraft info DB open failed:', (e as Error).message);
+        log.err(`Aircraft info DB open failed: ${(e as Error).message}`);
         return null;
     }
 }
