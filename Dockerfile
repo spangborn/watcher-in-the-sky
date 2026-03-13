@@ -1,11 +1,13 @@
-FROM --platform=linux/arm64 node:22 as base
+FROM node:22 as base
 
-# We don't need the standalone Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
-ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
+# Use system Chromium in Docker (skip Puppeteer's download)
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install necessary dependencies for Puppeteer and Chromium
+# Build tools for native addons (e.g. sqlite3) + runtime deps + Chromium for Puppeteer
 RUN apt-get update && apt-get install -y \
+  build-essential \
+  python3 \
   fonts-liberation \
   libasound2 \
   libatk-bridge2.0-0 \
@@ -33,24 +35,32 @@ WORKDIR /home/node/app
 
 COPY package*.json ./
 
+# Force sqlite3 to build from source so it links against this image's glibc (2.36).
+# Prebuilds are often built on glibc 2.38+ and fail with "version `GLIBC_2.38' not found".
+ENV npm_config_build_from_source=true
 RUN npm i
 
 COPY . .
 
-
+RUN chmod +x scripts/docker-entrypoint.sh
+ENTRYPOINT ["scripts/docker-entrypoint.sh"]
 
 FROM base as production
 
 ENV NODE_PATH=./build
 WORKDIR /home/node/app
 
-# Puppeteer setup: Skip Chromium download and use the installed Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 RUN npm run build
 
-# Attempting to see if puppeteer works now
+# Data directory for both DBs; volume mounts here so they persist across rebuilds
+ENV DATA_DIR=/home/node/app/data
+
+EXPOSE 3000
+
+# Verify native deps (e.g. sqlite3) load in this image before we ship it
 RUN npm run test
 
-#CMD ["node", "build/index.js"]
+CMD ["npm", "run", "start"]

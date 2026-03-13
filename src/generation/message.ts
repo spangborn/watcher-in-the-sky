@@ -1,0 +1,216 @@
+/**
+ * Grammar-style message generation for circling aircraft posts,
+ * matching https://gitlab.com/jjwiseman/advisory-circular-rs (tweet.genx).
+ * Weights: militaryregistration=4, registration=3, militaryicao=2, icao=1.
+ */
+
+export interface AircraftFields {
+    hex: string;
+    r?: string | null;
+    flight?: string | null;
+    /** Aircraft type (e.g. from API "t" or mictronics DB) */
+    type?: string | null;
+    /** Military flag (e.g. from API dbFlags & 1) */
+    isMilitary?: boolean;
+    alt_baro?: number | string | null;
+    gs?: number | null;
+    squawk?: string | null;
+}
+
+export interface ReverseGeoProperties {
+    label?: string;
+    name?: string;
+    locality?: string;
+    neighbourhood?: string;
+    county?: string;
+    localadmin?: string;
+}
+
+/** Optional landmark: "X miles from Y" */
+export interface LandmarkInfo {
+    name: string;
+    distanceMiles: number;
+}
+
+/** Optional wildfire: "X miles from the Y" */
+export interface FireInfo {
+    name: string;
+    distanceMiles: number;
+}
+
+function pickWeighted<T>(options: [T, number][], random: () => number = Math.random): T {
+    const total = options.reduce((sum, [, w]) => sum + w, 0);
+    let r = random() * total;
+    for (const [value, weight] of options) {
+        r -= weight;
+        if (r <= 0) return value;
+    }
+    return options[options.length - 1][0];
+}
+
+function articleForType(type: string): string {
+    const first = type.trim().charAt(0).toLowerCase();
+    return /[aeiou]/.test(first) ? 'an' : 'a';
+}
+
+/**
+ * Id and type phrase per tweet.genx id_and_type rule and WEIGHTS:
+ * militaryregistration=4, registration=3, militaryicao=2, icao=1.
+ * Registration is emitted as a hashtag (e.g. #N616LM).
+ */
+function idAndType(ac: AircraftFields, random: () => number = Math.random): string {
+    const registration = ac.r?.trim();
+    const icao = ac.hex;
+    const acType = ac.type?.trim();
+    const isMilitary = Boolean(ac.isMilitary);
+    const options: [string, number][] = [];
+    const regTag = registration ? `#${registration}` : '';
+
+    if (isMilitary && registration) {
+        options.push([`${regTag}, a military aircraft`, 4]);
+        if (acType) options.push([`${regTag}, a military ${acType}`, 4]);
+    }
+    if (!isMilitary && registration) {
+        options.push([regTag, 3]);
+        if (acType) options.push([`${regTag}, ${articleForType(acType)} ${acType}`, 3]);
+    }
+    if (!registration) {
+        options.push([`Aircraft with unknown registration, hex/ICAO ${icao}`, 1]);
+        if (acType) options.push([`${acType} with unknown registration, hex/ICAO ${icao}`, 1]);
+        if (isMilitary) options.push([`Military aircraft with unknown registration, hex/ICAO ${icao}`, 2]);
+    }
+
+    if (options.length === 0) return `Aircraft with unknown registration, hex/ICAO ${icao}`;
+    return pickWeighted(options, random);
+}
+
+/** Location phrase from reverse geo (weighted like advisory-circular) */
+function locationPhrase(props: ReverseGeoProperties | null, random: () => number = Math.random): string {
+    if (!props) return '';
+    const n = props.neighbourhood ?? '';
+    const loc = props.locality ?? '';
+    const county = props.county ?? '';
+    const localadmin = props.localadmin ?? '';
+    const name = props.name ?? props.label ?? '';
+    const options: [string, number][] = [];
+    if (n && loc) options.push([`${n}, ${loc}`, 3]);
+    if (n && county) options.push([`${n}, ${county}`, 3]);
+    if (loc) options.push([loc, 3]);
+    if (localadmin) options.push([localadmin, 1]);
+    if (name) options.push([name, 0.5]);
+    if (options.length === 0) return name || 'unknown location';
+    return pickWeighted(options, random);
+}
+
+/** Optional "call sign #X" if we have a distinct callsign (hashtag) */
+function callSignPart(ac: AircraftFields): string {
+    const call = ac.flight?.trim();
+    const reg = ac.r?.trim();
+    if (!call || call === reg) return '';
+    return ` call sign #${call}`;
+}
+
+/** Optional "at X feet" (no trailing comma; joined with other clauses) */
+function altitudePart(ac: AircraftFields): string {
+    const alt = ac.alt_baro;
+    if (alt == null || alt === 'ground') return '';
+    const n = typeof alt === 'number' ? Math.round(alt) : parseInt(String(alt), 10);
+    if (Number.isNaN(n)) return '';
+    return ` at ${n} feet`;
+}
+
+/** Optional "speed X MPH" (API often gives knots; convert for readability) */
+function speedPart(ac: AircraftFields): string {
+    const gs = ac.gs;
+    if (gs == null || typeof gs !== 'number') return '';
+    const mph = Math.round(gs * 1.15078);
+    return ` speed ${mph} MPH`;
+}
+
+/** Optional "squawking X" */
+function squawkPart(ac: AircraftFields): string {
+    const sq = ac.squawk;
+    if (sq == null || String(sq).trim() === '') return '';
+    return ` squawking ${sq}`;
+}
+
+function landmarkPart(landmark: LandmarkInfo | null | undefined): string {
+    if (!landmark?.name) return '';
+    const dist = typeof landmark.distanceMiles === 'number'
+        ? landmark.distanceMiles.toFixed(1)
+        : String(landmark.distanceMiles);
+    return ` ${dist} miles from ${landmark.name}`;
+}
+
+function firePart(fire: FireInfo | null | undefined): string {
+    if (!fire?.name) return '';
+    const dist = typeof fire.distanceMiles === 'number'
+        ? fire.distanceMiles.toFixed(1)
+        : String(fire.distanceMiles);
+    return ` ${dist} miles from the ${fire.name}`;
+}
+
+/** Optional: provide to get deterministic output (e.g. for tests). 0 = first option, 1 = last. */
+export type RandomFn = () => number;
+
+/**
+ * Build a circling message matching advisory-circular-rs tweet.genx:
+ * "[id][ call sign X] is circling over [location][ at X feet,][ speed X MPH,][ squawking X,][ landmark][ fire]\nView more: url"
+ */
+export function buildCirclingMessage(
+    ac: AircraftFields,
+    reverseGeoProps: ReverseGeoProperties | null,
+    viewMoreUrl: string,
+    options?: { landmark?: LandmarkInfo | null; fire?: FireInfo | null; /** For deterministic tests */ random?: RandomFn }
+): string {
+    const random = options?.random ?? Math.random;
+    const id = idAndType(ac, random);
+    const call = callSignPart(ac);
+    const loc = locationPhrase(reverseGeoProps, random);
+    const alt = altitudePart(ac);
+    const speed = speedPart(ac);
+    const squawk = squawkPart(ac);
+    const landmark = landmarkPart(options?.landmark ?? null);
+    const fire = firePart(options?.fire ?? null);
+
+    const clauseParts = [alt, speed, squawk].filter(Boolean).join(', ');
+    const trailing = [landmark, fire].filter(Boolean).join('').trim();
+    const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
+    const middleWithSpace = middle ? (middle.startsWith(' ') ? middle : ' ' + middle) : '';
+    const main = loc
+        ? `${id}${call} is circling over ${loc}${middleWithSpace}`
+        : `${id}${call} is circling${middleWithSpace}`;
+
+    return `${main.trim()}\nView more: ${viewMoreUrl}`;
+}
+
+/**
+ * Build a message for imaging/survey (zig-zag) pattern:
+ * "[id][ call sign X] appears to be on an imaging/survey pattern over [location][ at X feet,]...\nView more: url"
+ */
+export function buildImagingMessage(
+    ac: AircraftFields,
+    reverseGeoProps: ReverseGeoProperties | null,
+    viewMoreUrl: string,
+    options?: { landmark?: LandmarkInfo | null; fire?: FireInfo | null; random?: RandomFn }
+): string {
+    const random = options?.random ?? Math.random;
+    const id = idAndType(ac, random);
+    const call = callSignPart(ac);
+    const loc = locationPhrase(reverseGeoProps, random);
+    const alt = altitudePart(ac);
+    const speed = speedPart(ac);
+    const squawk = squawkPart(ac);
+    const landmark = landmarkPart(options?.landmark ?? null);
+    const fire = firePart(options?.fire ?? null);
+
+    const clauseParts = [alt, speed, squawk].filter(Boolean).join(', ');
+    const trailing = [landmark, fire].filter(Boolean).join('').trim();
+    const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
+    const middleWithSpace = middle ? (middle.startsWith(' ') ? middle : ' ' + middle) : '';
+    const verb = loc
+        ? `appears to be on an imaging/survey pattern over ${loc}${middleWithSpace}`
+        : `appears to be on an imaging/survey pattern${middleWithSpace}`;
+
+    return `${id}${call} ${verb.trim()}\nView more: ${viewMoreUrl}`;
+}
