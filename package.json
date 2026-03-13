@@ -1,28 +1,33 @@
 {
   "dependencies": {
     "@atproto/api": "^0.19.0",
+    "adm-zip": "^0.5.16",
     "axios": "^1.13.6",
     "axios-cache-interceptor": "^1.12.0",
-    "chokidar": "^5.0.0",
+    "chalk": "^4.1.2",
     "cron": "^4.4.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "moment": "^2.30.1",
     "puppeteer": "^24.38.0",
-    "puppeteer-core": "^24.39.0",
     "rita": "^3.2.11",
-    "sqlite3": "^5.1.7",
-    "typescript": "^5.9.3"
+    "sqlite3": "^6.0.1"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "nodemon": "^3.1.14",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "scripts": {
     "start": "NODE_PATH=./build node build/index.js",
     "prod": "node build/index.js",
     "build": "tsc -p .",
-    "dev": "nodemon src/index.ts",
-    "test": "npx ts-node src/test.ts"
+    "dev": "BLUESKY_DEBUG=true nodemon src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "install:browser": "npx puppeteer browsers install chrome",
+    "create-aircraft-db": "ts-node scripts/create-aircraft-db.ts",
+    "check-pelias-airport": "ts-node scripts/check-pelias-airport.ts"
   }
 }

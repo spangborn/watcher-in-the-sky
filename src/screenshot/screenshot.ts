@@ -1,4 +1,5 @@
 import puppeteer from 'puppeteer';
+import * as log from '../log';
 
 function delay(time: number) {
     return new Promise(function (resolve) {
@@ -7,8 +8,11 @@ function delay(time: number) {
 }
 
 export async function captureScreenshot(hex: string, url: string): Promise<Uint8Array> {
-// Create a browser instance
-    let browser = await puppeteer.launch({
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+    let browser;
+    try {
+        browser = await puppeteer.launch({
+        ...(executablePath ? { executablePath } : {}),
         args: ['--no-sandbox', '--window-size=1920,1080', '--ignore-certificate-errors', '--ignore-certificate-errors-spki-list', '--disable-dev-shm-usage'],
         defaultViewport: {
             width: 1600,
@@ -16,9 +20,13 @@ export async function captureScreenshot(hex: string, url: string): Promise<Uint8
           },
 	    timeout: 0,
         headless: true
-    });
-    try {
+        });
+    } catch (launchErr: unknown) {
+        log.warn(`Screenshot skipped (Chrome not available): ${launchErr instanceof Error ? launchErr.message : launchErr}`);
+        return new Uint8Array(0);
+    }
 
+    try {
         // Create a new page
         const page = await browser.newPage();
 
@@ -50,10 +58,9 @@ export async function captureScreenshot(hex: string, url: string): Promise<Uint8
 
         return screenshotData;
     }
-    catch (err: any) {
-        console.log("Encountered an error while trying to screenshot: ", err.message);
-        return new Uint8Array();
-
+    catch (err: unknown) {
+        log.warn(`Screenshot failed: ${err instanceof Error ? err.message : err}`);
+        return new Uint8Array(0);
     }
     finally {
         await browser.close();
