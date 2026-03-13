@@ -10,7 +10,7 @@ export interface ClosestLandmark {
 export async function reverse(lat: number, lon: number, options: Record<string, any> = {}): Promise<any> {
     const requestUrl = new URL("/v1/reverse", PELIAS_INSTANCE);
 
-    Object.entries({ ...options, 'point.lat': lat, 'point.lon': lon, "layers": "coarse,venue" }).forEach(([key, value]) => {
+    Object.entries({ ...options, 'point.lat': lat, 'point.lon': lon, "layers": "coarse" }).forEach(([key, value]) => {
         requestUrl.searchParams.append(key, String(value));
     });
     console.log(`Querying ${requestUrl}`);
@@ -69,13 +69,14 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): num
     return R * c;
 }
 
-/** Get the closest venue/landmark near a point (for "X miles from [landmark]" in posts). */
+/** Get the closest venue/landmark near a point (for "X miles from [landmark]" in posts). Uses venue layer only; separate from reverse (coarse). */
 export async function getClosestLandmark(lat: number, lon: number): Promise<ClosestLandmark | null> {
     const requestUrl = new URL('/v1/nearby', PELIAS_INSTANCE);
     requestUrl.searchParams.set('point.lat', String(lat));
     requestUrl.searchParams.set('point.lon', String(lon));
     requestUrl.searchParams.set('layers', 'venue');
-    requestUrl.searchParams.set('size', '10');
+    requestUrl.searchParams.set('size', '50');
+    requestUrl.searchParams.set('boundary.circle.radius', '100');
     try {
         const response = await axios.get(requestUrl.toString());
         const features = response.data?.features;

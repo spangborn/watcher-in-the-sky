@@ -91,14 +91,29 @@ function locationPhrase(props: ReverseGeoProperties | null, random: () => number
     const county = (props.county ?? '').trim();
     const localadmin = (props.localadmin ?? '').trim();
     const name = (props.name ?? props.label ?? '').trim();
+
+    const norm = (s: string) => s.trim().toLowerCase();
+    const isDistinct = (a: string, b: string) => a && b && norm(a) !== norm(b);
+    const isDistinctOrMissing = (a: string, b: string) => a && (!b || isDistinct(a, b));
     const options: [string, number][] = [];
-    if (n && loc) options.push([`${n}, ${loc}`, 3]);
-    if (n && county) options.push([`${n}, ${county}`, 3]);
+
+    // Avoid redundant phrases like "X, X" when Pelias returns matching fields.
+    if (n && loc && isDistinct(n, loc)) options.push([`${n}, ${loc}`, 3]);
+    if (n && county && isDistinct(n, county)) options.push([`${n}, ${county}`, 3]);
     if (loc) options.push([loc, 3]);
-    if (localadmin) options.push([localadmin, 1]);
-    if (name) options.push([name, 0.5]);
-    if (options.length === 0) return name || 'unknown location';
-    return pickWeighted(options, random);
+    if (localadmin && isDistinctOrMissing(localadmin, loc)) options.push([localadmin, 1]);
+    if (name && isDistinctOrMissing(name, loc) && isDistinctOrMissing(name, localadmin)) options.push([name, 0.5]);
+
+    // De-duplicate identical strings that can still arise via different fields.
+    const seen = new Set<string>();
+    const deduped = options.filter(([s]) => {
+        const k = norm(s);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+    });
+    if (deduped.length === 0) return name || loc || localadmin || 'unknown location';
+    return pickWeighted(deduped, random);
 }
 
 /** Optional "call sign #X" if we have a distinct callsign (hashtag) */
@@ -135,10 +150,11 @@ function squawkPart(ac: AircraftFields): string {
 
 function landmarkPart(landmark: LandmarkInfo | null | undefined): string {
     if (!landmark?.name) return '';
+    const name = landmark.name.trim();
     const dist = typeof landmark.distanceMiles === 'number'
         ? landmark.distanceMiles.toFixed(1)
         : String(landmark.distanceMiles);
-    return ` ${dist} miles from ${landmark.name.trim()}`;
+    return ` ${dist} miles from ${name}`;
 }
 
 function firePart(fire: FireInfo | null | undefined): string {
