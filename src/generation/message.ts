@@ -61,7 +61,7 @@ function articleForType(type: string): string {
 function idAndType(ac: AircraftFields, random: () => number = Math.random): string {
     const registration = ac.r?.trim();
     const icao = ac.hex;
-    const acType = ac.type?.trim();
+    const acType = ac.type?.trim() ?? null;
     const isMilitary = Boolean(ac.isMilitary);
     const options: [string, number][] = [];
     const regTag = registration ? `#${registration}` : '';
@@ -71,7 +71,7 @@ function idAndType(ac: AircraftFields, random: () => number = Math.random): stri
         if (acType) options.push([`${regTag}, a military ${acType}`, 4]);
     }
     if (!isMilitary && registration) {
-        options.push([regTag, 3]);
+        options.push([`${regTag},`, 3]);
         if (acType) options.push([`${regTag}, ${articleForType(acType)} ${acType}`, 3]);
     }
     if (!registration) {

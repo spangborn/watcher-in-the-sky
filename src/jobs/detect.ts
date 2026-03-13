@@ -214,7 +214,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                     const mictronics = await getAircraftInfo(hex);
                     if (mictronics) {
                         registration = registration ?? mictronics.registration ?? null;
-                        aircraftType = aircraftType ?? mictronics.type ?? null;
+                        aircraftType = aircraftType ?? mictronics.description ?? mictronics.type ?? null;
                     }
                 }
                 if (await wasPostedRecently(hex)) {

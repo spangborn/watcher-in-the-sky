@@ -1,7 +1,7 @@
 /**
  * Lookup aircraft registration and type from the Mictronics aircraft database.
  * Use a SQLite DB created from the Mictronics/readsb JSON export (see scripts/create-aircraft-db.ts).
- * Schema: aircraft(icao TEXT PRIMARY KEY, registration TEXT, type TEXT)
+ * Schema: aircraft(icao TEXT PRIMARY KEY, registration TEXT, type TEXT, description TEXT)
  */
 
 import * as fs from 'fs';
@@ -55,10 +55,12 @@ function getDb(): sqlite3.Database | null {
 export interface AircraftRecord {
     registration: string | null;
     type: string | null;
+    /** Full description from DB (e.g. "BLACKSHAPE BS100 Prime"); use for display when available. */
+    description: string | null;
 }
 
 /**
- * Look up registration and type by ICAO (hex). Returns null if DB not configured or not found.
+ * Look up registration, type, and description by ICAO (hex). Returns null if DB not configured or not found.
  */
 export function getRecord(icao: string): Promise<AircraftRecord | null> {
     return new Promise((resolve) => {
@@ -69,12 +71,22 @@ export function getRecord(icao: string): Promise<AircraftRecord | null> {
         }
         const key = icao.replace(/^~/, '').toUpperCase();
         database.get(
-            'SELECT registration, type FROM aircraft WHERE icao = ?',
+            'SELECT registration, type, description FROM aircraft WHERE icao = ?',
             [key],
-            (err: Error | null, row: { registration: string | null; type: string | null } | undefined) => {
+            (err: Error | null, row: { registration: string | null; type: string | null; description?: string | null } | undefined) => {
                 if (err) {
-                    console.error('Aircraft info lookup error:', err.message);
-                    resolve(null);
+                    // Old DB may lack description column; fall back to type-only
+                    database.get('SELECT registration, type FROM aircraft WHERE icao = ?', [key], (_e: Error | null, r: { registration: string | null; type: string | null } | undefined) => {
+                        if (_e || !r) {
+                            resolve(null);
+                            return;
+                        }
+                        resolve({
+                            registration: r.registration?.trim() || null,
+                            type: r.type?.trim() || null,
+                            description: null,
+                        });
+                    });
                     return;
                 }
                 if (!row) {
@@ -83,7 +95,8 @@ export function getRecord(icao: string): Promise<AircraftRecord | null> {
                 }
                 const reg = row.registration?.trim() || null;
                 const type = row.type?.trim() || null;
-                resolve({ registration: reg, type });
+                const description = (row.description != null && row.description !== '') ? row.description.trim() || null : null;
+                resolve({ registration: reg, type, description });
             }
         );
     });

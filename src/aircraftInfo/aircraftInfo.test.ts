@@ -72,30 +72,30 @@ describe('aircraftInfo getRecord', () => {
         process.env.AIRCRAFT_INFO_DB = tempDbPath;
         const record = await getRecord('ABC123');
         expect(record).not.toBeNull();
-        expect(record).toEqual({ registration: 'N352HP', type: 'B738' });
+        expect(record).toEqual({ registration: 'N352HP', type: 'B738', description: null });
     });
 
     it('normalizes icao to uppercase for lookup', async () => {
         process.env.AIRCRAFT_INFO_DB = tempDbPath;
         const record = await getRecord('abc123');
-        expect(record).toEqual({ registration: 'N352HP', type: 'B738' });
+        expect(record).toEqual({ registration: 'N352HP', type: 'B738', description: null });
     });
 
     it('strips leading ~ from icao', async () => {
         process.env.AIRCRAFT_INFO_DB = tempDbPath;
         const record = await getRecord('~abc123');
-        expect(record).toEqual({ registration: 'N352HP', type: 'B738' });
+        expect(record).toEqual({ registration: 'N352HP', type: 'B738', description: null });
     });
 
     it('returns type only when registration is null in DB', async () => {
         process.env.AIRCRAFT_INFO_DB = tempDbPath;
         const record = await getRecord('AE4567');
-        expect(record).toEqual({ registration: null, type: 'F-16' });
+        expect(record).toEqual({ registration: null, type: 'F-16', description: null });
     });
 
     it('returns null registration and type when both are empty in DB', async () => {
         process.env.AIRCRAFT_INFO_DB = tempDbPath;
         const record = await getRecord('000000');
-        expect(record).toEqual({ registration: null, type: null });
+        expect(record).toEqual({ registration: null, type: null, description: null });
     });
 });

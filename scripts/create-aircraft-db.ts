@@ -9,8 +9,8 @@
  *   npx ts-node scripts/create-aircraft-db.ts [output.db]
  *   npx ts-node scripts/create-aircraft-db.ts path/to/aircraft.json [output.db]
  *
- * JSON format: object with ICAO (hex) keys and values like { r: "N12345", d: "B738" }
- * (r = registration, d = type/description).
+ * JSON format: object with ICAO (hex) keys and values like { r: "N12345", t: "B738", d: "Boeing 737-800" }
+ * (r = registration, t = type code, d = description; we store both type and description).
  */
 
 import * as fs from 'fs';
@@ -38,13 +38,14 @@ interface MictronicsEntry {
 }
 
 function buildDb(data: Record<string, MictronicsEntry>, outputPath: string): void {
-    const entries: [string, string | null, string | null][] = [];
+    const entries: [string, string | null, string | null, string | null][] = [];
     for (const [icao, entry] of Object.entries(data)) {
         if (!entry || typeof entry !== 'object') continue;
         const reg = (entry.r ?? '').trim() || null;
-        const type = (entry.d ?? entry.t ?? '').trim() || null;
+        const type = (entry.t ?? '').trim() || null;
+        const description = (entry.d ?? '').trim() || null;
         const key = icao.replace(/^~/, '').toUpperCase();
-        entries.push([key, reg, type]);
+        entries.push([key, reg, type, description]);
     }
 
     const db = new sqlite3.Database(outputPath);
@@ -55,18 +56,19 @@ function buildDb(data: Record<string, MictronicsEntry>, outputPath: string): voi
             CREATE TABLE aircraft (
                 icao TEXT NOT NULL PRIMARY KEY,
                 registration TEXT,
-                type TEXT
+                type TEXT,
+                description TEXT
             )
         `);
         db.run('CREATE UNIQUE INDEX idx_aircraft_icao ON aircraft (icao)');
 
         const insert = db.prepare(
-            'INSERT INTO aircraft (icao, registration, type) VALUES (?, ?, ?)'
+            'INSERT INTO aircraft (icao, registration, type, description) VALUES (?, ?, ?, ?)'
         );
         let done = 0;
         for (let i = 0; i < entries.length; i++) {
-            const [key, reg, type] = entries[i];
-            insert.run(key, reg, type, (err: Error | null) => {
+            const [key, reg, type, description] = entries[i];
+            insert.run(key, reg, type, description, (err: Error | null) => {
                 if (err) console.error(err);
                 done++;
                 if (done % 100000 === 0) console.log(`Inserted ${done} records...`);
