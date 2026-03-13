@@ -19,12 +19,18 @@ function normalizeBearingDelta(delta: number): number {
     return d;
 }
 
+interface ReversalIndices {
+    count: number;
+    firstReversalIdx: number | null;
+    lastReversalIdx: number | null;
+}
+
 /**
- * Count bearing reversals where each new leg is roughly opposite direction (~180°) to the previous.
- * Imaging: back-and-forth; circles: same turn direction, so bearing never flips 180°.
+ * Find reversal indices: count and first/last point indices where direction flips (~180°).
  */
-export function countZigzagReversals(segment: { lat: number; lon: number }[]): number {
-    if (segment.length < 3) return 0;
+function findReversalIndices(segment: { lat: number; lon: number }[]): ReversalIndices {
+    const result: ReversalIndices = { count: 0, firstReversalIdx: null, lastReversalIdx: null };
+    if (segment.length < 3) return result;
 
     const bearings: number[] = [];
     for (let i = 0; i < segment.length - 1; i++) {
@@ -33,7 +39,6 @@ export function countZigzagReversals(segment: { lat: number; lon: number }[]): n
         bearings.push(computeBearing(a.lat, a.lon, b.lat, b.lon));
     }
 
-    let reversals = 0;
     let prevTurnSign: number | null = null;
     let lastReversalIdx = -MIN_POINTS_PER_LEG - 1;
 
@@ -47,13 +52,23 @@ export function countZigzagReversals(segment: { lat: number; lon: number }[]): n
         const oppositeDirection = Math.abs(delta) >= MIN_OPPOSITE_DEG;
 
         if (isAlternating && legLongEnough && oppositeDirection) {
-            reversals++;
+            if (result.firstReversalIdx === null) result.firstReversalIdx = i;
+            result.lastReversalIdx = i;
+            result.count++;
             lastReversalIdx = i;
         }
         prevTurnSign = sign;
     }
 
-    return reversals;
+    return result;
+}
+
+/**
+ * Count bearing reversals where each new leg is roughly opposite direction (~180°) to the previous.
+ * Imaging: back-and-forth; circles: same turn direction, so bearing never flips 180°.
+ */
+export function countZigzagReversals(segment: { lat: number; lon: number }[]): number {
+    return findReversalIndices(segment).count;
 }
 
 export interface ZigzagPeriod {
@@ -96,4 +111,16 @@ export function findZigzagPeriod(
 /** Whether the segment has enough reversals to be considered an imaging/zig-zag pattern. */
 export function isZigzagPattern(segment: { lat: number; lon: number }[], minReversals: number = MIN_REVERSALS): boolean {
     return countZigzagReversals(segment) >= minReversals;
+}
+
+/**
+ * Return only the portion of the segment between the first and last zig-zag reversal.
+ * Use this for centroid so location/links reflect the actual imaging pattern, not approach/exit.
+ */
+export function getZigzagSubSegment<T extends { lat: number; lon: number }>(segment: T[]): T[] {
+    const { firstReversalIdx, lastReversalIdx } = findReversalIndices(segment);
+    if (firstReversalIdx === null || lastReversalIdx === null || firstReversalIdx >= lastReversalIdx) {
+        return segment;
+    }
+    return segment.slice(firstReversalIdx, lastReversalIdx + 1);
 }

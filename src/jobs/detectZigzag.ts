@@ -5,7 +5,7 @@
 import { fetchAircraftData } from '../adsb/adsb';
 import { insertFlightData, getRecentCoordinates, clearAircraft, wasPostedRecently, recordPosted } from '../database/database';
 import { calculateCentroid } from '../helpers/coordinateUtils';
-import { findZigzagPeriod, isZigzagPattern } from '../helpers/zigzag';
+import { findZigzagPeriod, isZigzagPattern, getZigzagSubSegment } from '../helpers/zigzag';
 import { isNearbyAirport, reverse, getClosestLandmark } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
 import { TAR1090_URL, TIME_WINDOW } from '../constants';
@@ -55,7 +55,8 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
 
         incrementZigzag();
         const { segment } = zigzagPeriod;
-        const centroid = calculateCentroid(segment);
+        const zigzagOnly = getZigzagSubSegment(segment);
+        const centroid = calculateCentroid(zigzagOnly);
 
         try {
             const isNearAirport = await isNearbyAirport(centroid.lat, centroid.lon, {});

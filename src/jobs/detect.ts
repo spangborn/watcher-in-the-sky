@@ -79,6 +79,39 @@ export function calculateCurviness(segment: { lat: number; lon: number }[]): num
     return Math.abs(totalChange);
 }
 
+/** Sub-window (ms) used to find the curviest part within the curviest period for centroid. */
+const CURVY_CENTROID_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
+
+/**
+ * Within a segment, find the sub-segment with highest curviness using a sliding time window.
+ * Use this for centroid so the point is in the tight circling core, not diluted by entry/exit.
+ */
+export function getCurviestSubSegment(
+    segment: { lat: number; lon: number; timestamp: number }[],
+    timeWindowMs: number = CURVY_CENTROID_WINDOW_MS
+): { lat: number; lon: number; timestamp: number }[] {
+    if (segment.length < 2) return segment;
+
+    let maxCurviness = 0;
+    let curviest: typeof segment = segment;
+
+    for (let i = 0; i < segment.length; i++) {
+        const endIdx = segment.findIndex(
+            (c, idx) => idx > i && c.timestamp - segment[i].timestamp > timeWindowMs
+        );
+        const window = endIdx === -1 ? segment.slice(i) : segment.slice(i, endIdx);
+        if (window.length < 2) continue;
+
+        const curviness = calculateCurviness(window);
+        if (curviness > maxCurviness) {
+            maxCurviness = curviness;
+            curviest = window;
+        }
+    }
+
+    return curviest;
+}
+
 /**
  * Determines whether a flight is circling based on its curviest time period.
  * @param segment Segment of the flight path with timestamps.
@@ -123,7 +156,8 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
             if (curvyPeriod && (await isCircling(curvyPeriod.segment))) {
                 incrementCircling();
                 const { segment } = curvyPeriod;
-                const centroid = calculateCentroid(segment);
+                const curviestSub = getCurviestSubSegment(segment);
+                const centroid = calculateCentroid(curviestSub);
 
                 try {
                     const isNearAirport = await isNearbyAirport(centroid.lat, centroid.lon, {});

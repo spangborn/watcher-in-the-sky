@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateCurviness, findCurviestTimePeriod } from './detect';
+import { calculateCurviness, findCurviestTimePeriod, getCurviestSubSegment } from './detect';
 
 describe('calculateCurviness', () => {
     it('returns 0 for empty segment', () => {
@@ -87,5 +87,33 @@ describe('findCurviestTimePeriod', () => {
             expect(result.segment.length).toBeGreaterThanOrEqual(2);
             expect(result.curviness).toBeGreaterThan(0);
         }
+    });
+});
+
+describe('getCurviestSubSegment', () => {
+    it('returns full segment when shorter than window', () => {
+        const segment = [
+            { lat: 34, lon: -118, timestamp: 0 },
+            { lat: 34.01, lon: -118, timestamp: 30000 },
+            { lat: 34.01, lon: -117.99, timestamp: 60000 },
+        ];
+        const sub = getCurviestSubSegment(segment, 120000);
+        expect(sub).toHaveLength(segment.length);
+    });
+
+    it('returns a sub-segment when a curvy part exists in a longer path', () => {
+        const base = 0;
+        // Straight, then turn, then straight
+        const segment = [
+            { lat: 34, lon: -118, timestamp: base, r: '' },
+            { lat: 34.01, lon: -118, timestamp: base + 60000, r: '' },
+            { lat: 34.02, lon: -118, timestamp: base + 120000, r: '' },
+            { lat: 34.02, lon: -117.99, timestamp: base + 180000, r: '' },
+            { lat: 34.01, lon: -117.99, timestamp: base + 240000, r: '' },
+            { lat: 34, lon: -118, timestamp: base + 300000, r: '' },
+        ];
+        const sub = getCurviestSubSegment(segment, 120000);
+        expect(sub.length).toBeLessThanOrEqual(segment.length);
+        expect(sub.length).toBeGreaterThanOrEqual(2);
     });
 });

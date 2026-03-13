@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { countZigzagReversals, findZigzagPeriod, isZigzagPattern } from './zigzag';
+import { countZigzagReversals, findZigzagPeriod, isZigzagPattern, getZigzagSubSegment } from './zigzag';
 
 describe('countZigzagReversals', () => {
     it('returns 0 for too few points', () => {
@@ -57,5 +57,35 @@ describe('isZigzagPattern', () => {
             { lat: 40.02, lon: -111 },
         ];
         expect(isZigzagPattern(straight)).toBe(false);
+    });
+});
+
+describe('getZigzagSubSegment', () => {
+    it('returns full segment when no reversals (straight path)', () => {
+        const straight = [
+            { lat: 40, lon: -111 },
+            { lat: 40.01, lon: -111 },
+            { lat: 40.02, lon: -111 },
+        ];
+        expect(getZigzagSubSegment(straight)).toEqual(straight);
+    });
+
+    it('returns a contiguous slice for zigzag (sub-segment or full when only one reversal)', () => {
+        // North (7) -> south (6) -> north (6): at least one reversal; may have first === last
+        const zigzag = [
+            ...Array.from({ length: 7 }, (_, i) => ({ lat: 40 + i * 0.01, lon: -111 })),
+            ...Array.from({ length: 6 }, (_, i) => ({ lat: 40.06 - (i + 1) * 0.01, lon: -111 })),
+            ...Array.from({ length: 6 }, (_, i) => ({ lat: 40 + (i + 1) * 0.01, lon: -111 })),
+        ];
+        const sub = getZigzagSubSegment(zigzag);
+        expect(sub.length).toBeGreaterThan(0);
+        expect(sub.length).toBeLessThanOrEqual(zigzag.length);
+        // Sub-segment must be contiguous in original (same refs or same coords)
+        const startIdx = zigzag.findIndex(p => p.lat === sub[0].lat && p.lon === sub[0].lon);
+        expect(startIdx).toBeGreaterThanOrEqual(0);
+        for (let i = 0; i < sub.length; i++) {
+            expect(sub[i].lat).toBe(zigzag[startIdx + i].lat);
+            expect(sub[i].lon).toBe(zigzag[startIdx + i].lon);
+        }
     });
 });
