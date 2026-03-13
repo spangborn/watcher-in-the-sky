@@ -7,7 +7,9 @@ export const TIME_WINDOW = parseInt(process.env.TIME_WINDOW || '1500000'); // De
 export const PRUNE_TIME = parseInt(process.env.PRUNE_TIME || '1500000'); // Default 25 minutes
 export const TAR1090_DATA_URL = process.env.TAR1090_DATA_URL || '';
 export const TAR1090_URL = process.env.TAR1090_URL || 'https://globe.airplanes.live/';
-export const PELIAS_INSTANCE = process.env.PELIAS_INSTANCE || '';
+// Default Pelias instance base URL for tests and local runs when not configured.
+// In production/Docker, set PELIAS_INSTANCE explicitly; this just avoids Invalid URL errors.
+export const PELIAS_INSTANCE = process.env.PELIAS_INSTANCE || 'http://pelias.invalid';
 export const BLUESKY_USERNAME = process.env.BLUESKY_USERNAME || '';
 export const BLUESKY_PASSWORD = process.env.BLUESKY_PASSWORD || '';
 /** When true, debug mode: do not post, only print message to terminal. Default false. */
