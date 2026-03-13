@@ -179,15 +179,9 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                 }
 
                 const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-                const urlParams = new URLSearchParams({
-                    icao: hex,
-                    zoom: '13',
-                    lat: centroid.lat.toFixed(4),
-                    lon: centroid.lon.toFixed(4),
-                    showTrace: dateStr,
-                });
-                const link = `${TAR1090_URL}?${urlParams}`;
-                const screenshotUrl = `${link}&hideButtons&hideSidebar&screenshot&nowebgl`;
+                const link = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}`;
+                // Screenshot URL is separate: center and zoom for framing.
+                const screenshotUrl = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}&zoom=13&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}&hideButtons&hideSidebar&screenshot&nowebgl`;
 
                 log.success(`Found circling aircraft ${hex}: ${log.link(link)}`);
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
