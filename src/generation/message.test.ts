@@ -27,7 +27,7 @@ describe('buildCirclingMessage', () => {
             null,
             url
         );
-        expect(msg).toMatch(/^(#N352HP|Aircraft with unknown registration, hex\/ICAO A1B2C3) is circling/);
+        expect(msg).toMatch(/^(#N352HP is circling|Aircraft with unknown registration, hex\/ICAO A1B2C3, is circling)/);
         expect(msg).toContain(url);
     });
 
@@ -163,7 +163,7 @@ describe('buildCirclingMessage', () => {
             null,
             url
         );
-        expect(msg).toMatch(/^(#N123|#N123, a Cessna 172) is circling/);
+        expect(msg).toMatch(/^(#N123 is circling|#N123, a Cessna 172, is circling)/);
     });
 
     it('uses type with unknown registration when type set and no r', () => {
@@ -219,7 +219,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: first }
             );
-            expect(msg).toMatch(/^Aircraft with unknown registration, hex\/ICAO A1B2C3 is circling\nhttps?:\/\//);
+            expect(msg).toMatch(/^Aircraft with unknown registration, hex\/ICAO A1B2C3, is circling\nhttps?:\/\//);
         });
 
         it('exact: registration + type when type set and first', () => {
@@ -239,7 +239,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: () => 0.76 }
             );
-            expect(msg).toMatch(/^#N123, a Cessna 172 is circling\nhttps?:\/\//);
+            expect(msg).toMatch(/^#N123, a Cessna 172, is circling\nhttps?:\/\//);
         });
 
         it('exact: military + registration (first option)', () => {
@@ -249,7 +249,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: first }
             );
-            expect(msg).toMatch(/^#08-1234, a military aircraft is circling\nhttps?:\/\//);
+            expect(msg).toMatch(/^#08-1234, a military aircraft, is circling\nhttps?:\/\//);
         });
 
         it('exact: military + registration + type (second option)', () => {
@@ -259,7 +259,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: () => 0.6 }
             );
-            expect(msg).toMatch(/^#08-1234, a military F-16 is circling\nhttps?:\/\//);
+            expect(msg).toMatch(/^#08-1234, a military F-16, is circling\nhttps?:\/\//);
         });
 
         it('exact: type with unknown registration', () => {
@@ -269,7 +269,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: () => 0.6 }
             );
-            expect(msg).toMatch(/^Boeing 737 with unknown registration, hex\/ICAO ABC is circling\nhttps?:\/\//);
+            expect(msg).toMatch(/^Boeing 737 with unknown registration, hex\/ICAO ABC, is circling\nhttps?:\/\//);
         });
 
         it('exact: military unknown registration', () => {
@@ -279,7 +279,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: last }
             );
-            expect(msg).toMatch(/^Military aircraft with unknown registration, hex\/ICAO AE1234 is circling\nhttps?:\/\//);
+            expect(msg).toMatch(/^Military aircraft with unknown registration, hex\/ICAO AE1234, is circling\nhttps?:\/\//);
         });
     });
 
@@ -430,7 +430,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                 url,
                 { random: first }
             );
-            expect(msg).toBe('Aircraft with unknown registration, hex/ICAO ABC123 is circling\n' + url);
+            expect(msg).toBe('Aircraft with unknown registration, hex/ICAO ABC123, is circling\n' + url);
         });
 
         it('all optional parts: location, altitude, speed, squawk, landmark, fire', () => {
@@ -452,7 +452,7 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
                     random: first,
                 }
             );
-            expect(msg).toContain('#N1 call sign #FLT is circling over N, L');
+            expect(msg).toContain('#N1, call sign #FLT, is circling over N, L');
             expect(msg).toContain('at 35000 feet');
             expect(msg).toContain('speed');
             expect(msg).toContain('MPH');

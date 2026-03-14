@@ -197,9 +197,11 @@ export function buildCirclingMessage(
     const trailing = [landmark, fire].filter(Boolean).join('').trim();
     const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
     const middleWithSpace = middle ? (middle.startsWith(' ') ? middle : ' ' + middle) : '';
+    const idCall = call ? `${id},${call}` : id;
+    const beforeVerb = idCall.includes(',') ? ', is circling' : ' is circling';
     const main = loc
-        ? `${id}${call} is circling over ${loc}${middleWithSpace}`
-        : `${id}${call} is circling${middleWithSpace}`;
+        ? `${idCall}${beforeVerb} over ${loc}${middleWithSpace}`
+        : `${idCall}${beforeVerb}${middleWithSpace}`;
 
     return `${normalizeSpaces(main)}\n${viewMoreUrl}`;
 }
@@ -228,11 +230,13 @@ export function buildImagingMessage(
     const trailing = [landmark, fire].filter(Boolean).join('').trim();
     const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
     const middleWithSpace = middle ? (middle.startsWith(' ') ? middle : ' ' + middle) : '';
+    const idCall = call ? `${id},${call}` : id;
+    const beforeVerb = idCall.includes(',') ? ', appears to be on an imaging/survey pattern' : ' appears to be on an imaging/survey pattern';
     const verb = loc
-        ? `appears to be on an imaging/survey pattern over ${loc}${middleWithSpace}`
-        : `appears to be on an imaging/survey pattern${middleWithSpace}`;
+        ? `${beforeVerb} over ${loc}${middleWithSpace}`
+        : `${beforeVerb}${middleWithSpace}`;
 
-    return `${normalizeSpaces(`${id}${call} ${verb}`)}\n${viewMoreUrl}`;
+    return `${normalizeSpaces(`${idCall}${verb}`)}\n${viewMoreUrl}`;
 }
 
 /**
