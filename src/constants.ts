@@ -3,7 +3,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const TOTAL_CHANGE = parseFloat(process.env.TOTAL_CHANGE || '1440');
-export const TIME_WINDOW = parseInt(process.env.TIME_WINDOW || '1500000'); // Default 25 minutes (ms)
+/** Max window (ms) for zigzag/imaging and for circling cutoff. Default 40 min. */
+export const TIME_WINDOW = parseInt(process.env.TIME_WINDOW || '2400000');
+/** Min window (ms) for zigzag sliding variable window. Default 10 min. */
+export const MIN_ZIGZAG_WINDOW_MS = parseInt(process.env.MIN_ZIGZAG_WINDOW_MS || '600000');
 export const PRUNE_TIME = parseInt(process.env.PRUNE_TIME || '1500000'); // Default 25 minutes
 export const TAR1090_DATA_URL = process.env.TAR1090_DATA_URL || '';
 export const TAR1090_URL = process.env.TAR1090_URL || 'https://globe.airplanes.live/';

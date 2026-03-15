@@ -37,7 +37,10 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
         const recentCoords = await getRecentCoordinates(hex, cutoff);
         const zigzagPeriod = findZigzagPeriod(
             recentCoords.map(c => ({ lat: c.lat, lon: c.lon, timestamp: c.timestamp })),
-            TIME_WINDOW
+            TIME_WINDOW,
+            undefined, // minReversals: use default (3)
+            1, // stride
+            TIME_WINDOW // minWindowMs: fixed 40-min window
         );
 
         if (zigzagPeriod) {

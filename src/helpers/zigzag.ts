@@ -274,44 +274,49 @@ function stridedSegment<T extends { lat: number; lon: number }>(segment: T[], st
 }
 
 /**
- * Find the time window where flight legs are most parallel (best imaging pattern).
- * Uses a sliding window: only windows with reversals >= minReversals are considered;
- * among those, the one with the highest parallelism score is returned.
- * @param stride If > 1, downsample to every stride-th point for detection (for high-rate data).
+ * Find the segment where flight legs are most parallel (best imaging pattern).
+ * Uses a sliding variable-length window: for each start, tries window lengths from minWindowMs
+ * up to maxWindowMs (stepping by ~2 min), keeps segments with reversals >= minReversals,
+ * and returns the one with the highest parallelism score.
+ * When minWindowMs === maxWindowMs (e.g. caller passes same value twice), behaves as a fixed-length window.
+ * @param maxWindowMs Max window duration (ms).
+ * @param minWindowMs Min window duration (ms); default max/4. Set equal to max for fixed window.
  */
 export function findZigzagPeriod(
     coords: { lat: number; lon: number; timestamp: number }[],
-    timeWindowMs: number,
+    maxWindowMs: number,
     minReversals: number = MIN_REVERSALS,
-    stride: number = 1
+    stride: number = 1,
+    minWindowMs: number = Math.floor(maxWindowMs / 4)
 ): ZigzagPeriod | null {
     if (coords.length < 3) return null;
 
+    const stepMs = minWindowMs >= maxWindowMs ? maxWindowMs + 1 : 2 * 60 * 1000;
     let best: { segment: typeof coords; reversals: number; score: number } | null = null;
 
     for (let i = 0; i < coords.length; i++) {
-        const endIdx = coords.findIndex(
-            (c, idx) => idx > i && c.timestamp - coords[i].timestamp > timeWindowMs
-        );
-        const window = endIdx === -1
-            ? coords.slice(i)
-            : coords.slice(i, endIdx === -1 ? undefined : endIdx);
+        const t0 = coords[i].timestamp;
+        let j = i;
+        for (let targetDur = minWindowMs; targetDur <= maxWindowMs; targetDur += stepMs) {
+            while (j < coords.length && coords[j].timestamp - t0 < targetDur) j++;
+            if (j <= i + 1) continue;
+            const window = coords.slice(i, j + 1);
+            if (window.length < 3) continue;
 
-        if (window.length < 3) continue;
+            const forDetection = stridedSegment(window, stride);
+            if (forDetection.length < 3) continue;
 
-        const forDetection = stridedSegment(window, stride);
-        if (forDetection.length < 3) continue;
+            const reversals = countZigzagReversals(forDetection);
+            if (reversals < minReversals) continue;
 
-        const reversals = countZigzagReversals(forDetection);
-        if (reversals < minReversals) continue;
-
-        const score = computeParallelismScore(forDetection);
-        const isBetter =
-            !best ||
-            score > best.score ||
-            (score === best.score && reversals > best.reversals);
-        if (isBetter) {
-            best = { segment: window, reversals, score };
+            const score = computeParallelismScore(forDetection);
+            const isBetter =
+                !best ||
+                score > best.score ||
+                (score === best.score && reversals > best.reversals);
+            if (isBetter) {
+                best = { segment: window, reversals, score };
+            }
         }
     }
 

@@ -87,7 +87,7 @@ function main(): void {
         process.exit(0);
     }
 
-    const period = findZigzagPeriod(coords, windowMs, undefined, stride);
+    const period = findZigzagPeriod(coords, windowMs, undefined, stride, windowMs);
 
     if (!period) {
         let maxReversals = 0;
@@ -122,6 +122,8 @@ function main(): void {
             const extendForward = Math.min(250, coords.length - 1 - endIdx);
             const extendedSegment = coords.slice(startIdx - extendBack, endIdx + extendForward + 1);
             const rawLegs = getLegSegments(extendedSegment, stride);
+            const extendedReversals = rawLegs.length - 1;
+            console.log(`  Extended segment: ${extendedReversals} reversals = ${rawLegs.length} legs`);
             const MIN_LEG_M = 2000;
             const legDistances = rawLegs.map((leg) => {
                 let d = 0;
