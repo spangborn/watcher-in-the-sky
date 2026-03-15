@@ -16,8 +16,9 @@ import {
     isZigzagPattern,
     countZigzagReversals,
     getZigzagSubSegment,
+    getLegSegments,
 } from '../src/helpers/zigzag';
-import { calculateCentroid } from '../src/helpers/coordinateUtils';
+import { calculateCentroid, distanceMeters } from '../src/helpers/coordinateUtils';
 
 interface TraceFile {
     icao?: string;
@@ -114,6 +115,30 @@ function main(): void {
         const sub = getZigzagSubSegment(period.segment, stride);
         const centroid = calculateCentroid(sub);
         console.log('Centroid (lat, lon):', centroid.lat.toFixed(5), centroid.lon.toFixed(5));
+        const startIdx = coords.findIndex((c) => c.timestamp === period.segment[0].timestamp);
+        const endIdx = coords.findIndex((c) => c.timestamp === period.segment[period.segment.length - 1].timestamp);
+        if (startIdx >= 0 && endIdx >= 0) {
+            const extendBack = Math.min(250, startIdx);
+            const extendForward = Math.min(250, coords.length - 1 - endIdx);
+            const extendedSegment = coords.slice(startIdx - extendBack, endIdx + extendForward + 1);
+            const rawLegs = getLegSegments(extendedSegment, stride);
+            const MIN_LEG_M = 2000;
+            const legDistances = rawLegs.map((leg) => {
+                let d = 0;
+                for (let i = 0; i < leg.length - 1; i++) {
+                    d += distanceMeters(leg[i].lat, leg[i].lon, leg[i + 1].lat, leg[i + 1].lon);
+                }
+                return d;
+            });
+            legDistances.forEach((m, i) => {
+                const ok = m >= MIN_LEG_M ? 'ok' : '< 2km';
+                console.log(`  Leg ${i + 1}: ${(m / 1000).toFixed(2)} km ${ok}`);
+            });
+            const lastLegM = legDistances[legDistances.length - 1];
+            if (lastLegM !== undefined) {
+                console.log(`  Last leg (${legDistances.length}) hits 2km threshold: ${lastLegM >= MIN_LEG_M}`);
+            }
+        }
     }
 }
 
