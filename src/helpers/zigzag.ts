@@ -330,8 +330,7 @@ export function isZigzagPattern(
     const count = countZigzagReversals(seg);
     if (count < minReversals) return false;
     if (!backAndForthBalanced(seg)) return false;
-    if (count >= 6) return legsAreRoughlyParallel(seg);
-    return true;
+    return legsAreRoughlyParallel(seg);
 }
 
 /**
