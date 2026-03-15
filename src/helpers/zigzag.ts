@@ -1,17 +1,20 @@
 import { computeBearing } from './coordinateUtils';
 
-/** Minimum turn angle (degrees) to count as a leg reversal. Imaging uses ~180°; circuits use ~90°. */
-const MIN_TURN_DEG = 130;
-/** Minimum number of alternating reversals (parallel legs) for imaging pattern. 6 reversals = 7 legs. */
-const MIN_REVERSALS = 6;
+/** Minimum turn angle (degrees) to count as a leg reversal. Survey turns can be gradual; 70° avoids circles. */
+const MIN_TURN_DEG = 70;
+/** Minimum number of alternating reversals (parallel legs) for imaging pattern. 3 reversals = 4 legs (survey). */
+const MIN_REVERSALS = 3;
 /** Minimum points between reversals (sustained leg); filters tight circuits and noisy tracks. */
-const MIN_POINTS_PER_LEG = 8;
-/** Turn must be near 180° (opposite direction); circles have ~90° turns. */
-const MIN_OPPOSITE_DEG = 155;
+const MIN_POINTS_PER_LEG = 3;
+/** Turn must be toward opposite direction (not shallow); survey ~180°, circles ~90°. */
+const MIN_OPPOSITE_DEG = 80;
 /** Max bearing spread (degrees) for legs in the same direction to count as parallel. */
-const PARALLEL_TOLERANCE_DEG = 15;
+const PARALLEL_TOLERANCE_DEG = 25;
 /** Min angle (degrees) between the two leg directions for imaging (should be ~180). */
-const MIN_OPPOSITE_LEG_DEG = 168;
+const MIN_OPPOSITE_LEG_DEG = 150;
+
+/** Number of bearing segments on each side of a turn to compute cumulative direction change (for gradual turns). */
+const TURN_WINDOW = 3;
 
 /**
  * Normalize bearing difference to -180..180.
@@ -32,6 +35,64 @@ function bearingDiff(b1: number, b2: number): number {
     return d;
 }
 
+/** Max bearing spread (degrees) in an array of leg bearings. */
+function maxSpread(arr: number[]): number {
+    if (arr.length < 2) return 0;
+    let max = 0;
+    for (let i = 0; i < arr.length; i++) {
+        for (let j = i + 1; j < arr.length; j++) {
+            max = Math.max(max, bearingDiff(arr[i], arr[j]));
+        }
+    }
+    return max;
+}
+
+/**
+ * Leg bearings and reversal indices for a segment (for parallelism scoring).
+ * Legs are between reversals; odd-indexed legs (0,2,4...) one direction, even (1,3,5...) the other.
+ */
+function getLegBearings(segment: { lat: number; lon: number }[]): {
+    legBearings: number[];
+    reversalIndices: number[];
+} {
+    const { reversalIndices } = findReversalIndices(segment);
+    const bearings: number[] = [];
+    for (let i = 0; i < segment.length - 1; i++) {
+        const a = segment[i];
+        const b = segment[i + 1];
+        bearings.push(computeBearing(a.lat, a.lon, b.lat, b.lon));
+    }
+    const legBearings: number[] = [];
+    const starts = [0, ...reversalIndices];
+    const ends = [...reversalIndices, bearings.length];
+    for (let i = 0; i < starts.length && i < ends.length; i++) {
+        if (ends[i] > starts[i]) {
+            legBearings.push(meanBearing(bearings, starts[i], ends[i]));
+        }
+    }
+    return { legBearings, reversalIndices };
+}
+
+/**
+ * Parallelism score: higher = legs more parallel and opposite (~180°).
+ * Uses: low spread in same-direction legs + opposite direction ~180°.
+ * Returns -Infinity if too few legs to score.
+ */
+export function computeParallelismScore(segment: { lat: number; lon: number }[]): number {
+    const { legBearings, reversalIndices } = getLegBearings(segment);
+    if (reversalIndices.length < 2 || legBearings.length < 2) return -Infinity;
+
+    const oddBearings = legBearings.filter((_, i) => i % 2 === 0);
+    const evenBearings = legBearings.filter((_, i) => i % 2 === 1);
+    const spreadOdd = maxSpread(oddBearings);
+    const spreadEven = maxSpread(evenBearings);
+    const meanOdd = circularMeanDeg(oddBearings);
+    const meanEven = circularMeanDeg(evenBearings);
+    const oppositeAngle = Math.abs(normalizeBearingDelta(meanEven - meanOdd));
+    const oppositeError = Math.abs(180 - oppositeAngle);
+    return 540 - spreadOdd - spreadEven - oppositeError;
+}
+
 interface ReversalIndices {
     count: number;
     firstReversalIdx: number | null;
@@ -42,6 +103,7 @@ interface ReversalIndices {
 
 /**
  * Find reversal indices: count and first/last point indices where direction flips (~180°).
+ * Uses cumulative bearing change over TURN_WINDOW segments so gradual survey turns are detected.
  */
 function findReversalIndices(segment: { lat: number; lon: number }[]): ReversalIndices {
     const result: ReversalIndices = { count: 0, firstReversalIdx: null, lastReversalIdx: null, reversalIndices: [] };
@@ -54,11 +116,16 @@ function findReversalIndices(segment: { lat: number; lon: number }[]): ReversalI
         bearings.push(computeBearing(a.lat, a.lon, b.lat, b.lon));
     }
 
+    const w = TURN_WINDOW;
+    if (bearings.length < w * 2) return result;
+
     let prevTurnSign: number | null = null;
     let lastReversalIdx = -MIN_POINTS_PER_LEG - 1;
 
-    for (let i = 1; i < bearings.length; i++) {
-        const delta = normalizeBearingDelta(bearings[i] - bearings[i - 1]);
+    for (let i = w; i <= bearings.length - w; i++) {
+        const beforeMean = circularMeanDeg(bearings.slice(i - w, i));
+        const afterMean = circularMeanDeg(bearings.slice(i, i + w));
+        const delta = normalizeBearingDelta(afterMean - beforeMean);
         if (Math.abs(delta) < MIN_TURN_DEG) continue;
 
         const sign = Math.sign(delta);
@@ -116,40 +183,11 @@ function circularMeanDeg(bearingsDeg: number[]): number {
  * Odd-indexed legs (0,2,4...) should be parallel; even-indexed (1,3,5...) parallel; the two groups ~180° apart.
  */
 function legsAreRoughlyParallel(segment: { lat: number; lon: number }[]): boolean {
-    const { reversalIndices } = findReversalIndices(segment);
-    if (reversalIndices.length < 2) return true; // not enough legs to check
-
-    const bearings: number[] = [];
-    for (let i = 0; i < segment.length - 1; i++) {
-        const a = segment[i];
-        const b = segment[i + 1];
-        bearings.push(computeBearing(a.lat, a.lon, b.lat, b.lon));
-    }
-
-    const legBearings: number[] = [];
-    const starts = [0, ...reversalIndices];
-    const ends = [...reversalIndices, bearings.length];
-    for (let i = 0; i < starts.length && i < ends.length; i++) {
-        if (ends[i] > starts[i]) {
-            legBearings.push(meanBearing(bearings, starts[i], ends[i]));
-        }
-    }
-
-    if (legBearings.length < 2) return true;
+    const { legBearings, reversalIndices } = getLegBearings(segment);
+    if (reversalIndices.length < 2 || legBearings.length < 2) return true;
 
     const oddBearings = legBearings.filter((_, i) => i % 2 === 0);
     const evenBearings = legBearings.filter((_, i) => i % 2 === 1);
-
-    const maxSpread = (arr: number[]) => {
-        if (arr.length < 2) return 0;
-        let max = 0;
-        for (let i = 0; i < arr.length; i++) {
-            for (let j = i + 1; j < arr.length; j++) {
-                max = Math.max(max, bearingDiff(arr[i], arr[j]));
-            }
-        }
-        return max;
-    };
 
     if (oddBearings.length >= 2 && maxSpread(oddBearings) > PARALLEL_TOLERANCE_DEG) return false;
     if (evenBearings.length >= 2 && maxSpread(evenBearings) > PARALLEL_TOLERANCE_DEG) return false;
@@ -177,18 +215,29 @@ export interface ZigzagPeriod {
     reversals: number;
 }
 
+/** Downsample to every stride-th point for bearing computation (makes gradual turns look sharp). */
+function stridedSegment<T extends { lat: number; lon: number }>(segment: T[], stride: number): T[] {
+    if (stride <= 1) return segment;
+    const out: T[] = [];
+    for (let i = 0; i < segment.length; i += stride) out.push(segment[i]);
+    return out;
+}
+
 /**
- * Find a time window in the path with the most zig-zag reversals.
- * Returns the segment and reversal count if reversals >= MIN_REVERSALS, else null.
+ * Find the time window where flight legs are most parallel (best imaging pattern).
+ * Uses a sliding window: only windows with reversals >= minReversals are considered;
+ * among those, the one with the highest parallelism score is returned.
+ * @param stride If > 1, downsample to every stride-th point for detection (for high-rate data).
  */
 export function findZigzagPeriod(
     coords: { lat: number; lon: number; timestamp: number }[],
     timeWindowMs: number,
-    minReversals: number = MIN_REVERSALS
+    minReversals: number = MIN_REVERSALS,
+    stride: number = 1
 ): ZigzagPeriod | null {
     if (coords.length < 3) return null;
 
-    let best: { segment: typeof coords; reversals: number } | null = null;
+    let best: { segment: typeof coords; reversals: number; score: number } | null = null;
 
     for (let i = 0; i < coords.length; i++) {
         const endIdx = coords.findIndex(
@@ -200,29 +249,51 @@ export function findZigzagPeriod(
 
         if (window.length < 3) continue;
 
-        const reversals = countZigzagReversals(window);
-        if (reversals >= minReversals && (!best || reversals > best.reversals)) {
-            best = { segment: window, reversals };
+        const forDetection = stridedSegment(window, stride);
+        if (forDetection.length < 3) continue;
+
+        const reversals = countZigzagReversals(forDetection);
+        if (reversals < minReversals) continue;
+
+        const score = computeParallelismScore(forDetection);
+        const isBetter =
+            !best ||
+            score > best.score ||
+            (score === best.score && reversals > best.reversals);
+        if (isBetter) {
+            best = { segment: window, reversals, score };
         }
     }
 
-    return best;
+    if (!best) return null;
+    return { segment: best.segment, reversals: best.reversals };
 }
 
 /** Whether the segment has enough reversals and roughly parallel legs (imaging pattern). */
-export function isZigzagPattern(segment: { lat: number; lon: number }[], minReversals: number = MIN_REVERSALS): boolean {
-    if (countZigzagReversals(segment) < minReversals) return false;
-    return legsAreRoughlyParallel(segment);
+export function isZigzagPattern(
+    segment: { lat: number; lon: number }[],
+    minReversals: number = MIN_REVERSALS,
+    stride: number = 1
+): boolean {
+    const seg = stridedSegment(segment, stride);
+    if (seg.length < 3) return false;
+    const count = countZigzagReversals(seg);
+    if (count < minReversals) return false;
+    if (count >= 6) return legsAreRoughlyParallel(seg);
+    return true;
 }
 
 /**
  * Return only the portion of the segment between the first and last zig-zag reversal.
  * Use this for centroid so location/links reflect the actual imaging pattern, not approach/exit.
  */
-export function getZigzagSubSegment<T extends { lat: number; lon: number }>(segment: T[]): T[] {
-    const { firstReversalIdx, lastReversalIdx } = findReversalIndices(segment);
+export function getZigzagSubSegment<T extends { lat: number; lon: number }>(segment: T[], stride: number = 1): T[] {
+    const seg = stridedSegment(segment, stride);
+    const { firstReversalIdx, lastReversalIdx } = findReversalIndices(seg);
     if (firstReversalIdx === null || lastReversalIdx === null || firstReversalIdx >= lastReversalIdx) {
         return segment;
     }
-    return segment.slice(firstReversalIdx, lastReversalIdx + 1);
+    const start = stride > 1 ? firstReversalIdx * stride : firstReversalIdx;
+    const end = stride > 1 ? Math.min(lastReversalIdx * stride + 1, segment.length) : lastReversalIdx + 1;
+    return segment.slice(start, end);
 }

@@ -24,8 +24,8 @@ export const AIRCRAFT_INFO_DB = process.env.AIRCRAFT_INFO_DB !== undefined ? pro
 /** Path to SQLite DB for tracking aircraft positions and post cooldowns. Derived from DATA_DIR when unset. */
 export const TRACKING_DB = process.env.TRACKING_DB || (DATA_DIR + '/aircraft.db');
 
-/** Detection loop interval (ms). Circling and zig-zag jobs run each interval. */
-export const DETECTION_INTERVAL_MS = parseInt(process.env.DETECTION_INTERVAL_MS || '20000', 10);
+/** Detection loop interval (ms). Circling and zig-zag jobs run each interval. 10s gives higher data resolution. */
+export const DETECTION_INTERVAL_MS = parseInt(process.env.DETECTION_INTERVAL_MS || '10000', 10);
 /** Aircraft API response cache TTL (ms). Just under detection interval so each run gets fresh data. */
 export const AIRCRAFT_CACHE_TTL_MS = Math.max(1000, DETECTION_INTERVAL_MS - 2000);
 
