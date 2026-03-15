@@ -14,6 +14,10 @@ const MIN_OPPOSITE_DEG = 80;
 const PARALLEL_TOLERANCE_DEG = 15;
 /** Min angle (degrees) between the two leg directions for imaging (should be ~180). */
 const MIN_OPPOSITE_LEG_DEG = 160;
+/** Max ratio of longest to shortest leg length (among legs >= MIN_LEG_DISTANCE_M). Rejects one long transit + short wiggles. */
+const MAX_LEG_LENGTH_RATIO = 5;
+/** When checking leg consistency, extend the window by this many points on each side to catch long transit legs. */
+const LEG_CHECK_EXTEND_POINTS = 30;
 
 /** Number of bearing segments on each side of a turn to compute cumulative direction change (for gradual turns). */
 const TURN_WINDOW = 3;
@@ -217,6 +221,30 @@ function legDistancesByDirection(segment: { lat: number; lon: number }[]): {
     return { distanceOddM, distanceEvenM };
 }
 
+/** Per-leg path distances in meters (between reversals). */
+function getLegDistancesM(segment: { lat: number; lon: number }[]): number[] {
+    const { reversalIndices } = findReversalIndices(segment);
+    if (reversalIndices.length === 0) return [];
+    const starts = [0, ...reversalIndices.map((r) => r + 1)];
+    const ends = [...reversalIndices, segment.length - 1];
+    const out: number[] = [];
+    for (let i = 0; i < starts.length && i < ends.length; i++) {
+        out.push(pathDistanceM(segment, starts[i], ends[i]));
+    }
+    return out;
+}
+
+/** True if leg lengths are reasonably consistent (imaging has similar-length passes, not one long leg + short wiggles). */
+function legsHaveConsistentLength(segment: { lat: number; lon: number }[]): boolean {
+    const distances = getLegDistancesM(segment);
+    const qualifying = distances.filter((d) => d >= MIN_LEG_DISTANCE_M);
+    if (qualifying.length < 2) return true;
+    const minD = Math.min(...qualifying);
+    const maxD = Math.max(...qualifying);
+    if (minD <= 0) return false;
+    return maxD / minD <= MAX_LEG_LENGTH_RATIO;
+}
+
 /** True if the two directions have substantial and balanced distance (more back-and-forth than one-sided). */
 function backAndForthBalanced(segment: { lat: number; lon: number }[]): boolean {
     const { distanceOddM, distanceEvenM } = legDistancesByDirection(segment);
@@ -310,6 +338,11 @@ export function findZigzagPeriod(
             if (reversals < minReversals) continue;
             if (!legsAreRoughlyParallel(forDetection)) continue;
             if (!backAndForthBalanced(forDetection)) continue;
+            const iExt = Math.max(0, i - LEG_CHECK_EXTEND_POINTS);
+            const jExt = Math.min(coords.length - 1, j + LEG_CHECK_EXTEND_POINTS);
+            const extendedWindow = coords.slice(iExt, jExt + 1);
+            const forDetectionExtended = stridedSegment(extendedWindow, stride);
+            if (!legsHaveConsistentLength(forDetectionExtended)) continue;
 
             const score = computeParallelismScore(forDetection);
             const isBetter =
@@ -338,6 +371,7 @@ export function zigzagFailureReason(
     if (count < minReversals) return `reversals ${count} < ${minReversals}`;
     if (!backAndForthBalanced(seg)) return 'direction not balanced (not enough back-and-forth)';
     if (!legsAreRoughlyParallel(seg)) return 'legs not roughly parallel';
+    if (!legsHaveConsistentLength(seg)) return 'leg lengths too inconsistent (not uniform imaging passes)';
     return null;
 }
 

@@ -73,8 +73,10 @@ function main(): void {
     const intervalSec = intervalArg != null ? parseInt(intervalArg, 10) : DEFAULT_INTERVAL_SEC;
     const strideArg = process.argv[4];
     const windowMinArg = process.argv[5];
+    const minRevArg = process.argv[6];
     const stride = strideArg != null ? Math.max(1, parseInt(strideArg, 10)) : 1;
     const windowMin = windowMinArg != null ? parseInt(windowMinArg, 10) : null;
+    const minReversals = minRevArg != null && !Number.isNaN(parseInt(minRevArg, 10)) ? parseInt(minRevArg, 10) : undefined;
     const windowMs = windowMin != null && !Number.isNaN(windowMin) ? windowMin * 60 * 1000 : TIME_WINDOW;
     if (intervalSec > 0 || stride > 1 || windowMin != null) {
         const raw = JSON.parse(fs.readFileSync(resolved, 'utf-8')) as TraceFile;
@@ -88,7 +90,7 @@ function main(): void {
         process.exit(0);
     }
 
-    const period = findZigzagPeriod(coords, windowMs, undefined, stride, windowMs);
+    const period = findZigzagPeriod(coords, windowMs, minReversals, stride, windowMs);
 
     if (!period) {
         let maxReversals = 0;
@@ -104,7 +106,8 @@ function main(): void {
                 maxReversals = Math.max(maxReversals, rev);
             }
         }
-        console.log('No window with >= 6 reversals. Max reversals in any', windowMs / 60000, 'min window:', maxReversals);
+        const minRev = minReversals ?? 3;
+        console.log('No window with >= ' + minRev + ' reversals. Max reversals in any', windowMs / 60000, 'min window:', maxReversals);
         process.exit(0);
     }
 
