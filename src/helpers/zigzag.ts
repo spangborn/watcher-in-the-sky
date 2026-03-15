@@ -10,10 +10,10 @@ const MIN_LEG_DISTANCE_M = 2000;
 const MIN_DIRECTION_BALANCE_RATIO = 0.4;
 /** Turn must be toward opposite direction (not shallow); survey ~180°, circles ~90°. */
 const MIN_OPPOSITE_DEG = 80;
-/** Max bearing spread (degrees) for legs in the same direction to count as parallel. */
-const PARALLEL_TOLERANCE_DEG = 25;
+/** Max bearing spread (degrees) for legs in the same direction to count as parallel. Critical for imaging. */
+const PARALLEL_TOLERANCE_DEG = 15;
 /** Min angle (degrees) between the two leg directions for imaging (should be ~180). */
-const MIN_OPPOSITE_LEG_DEG = 150;
+const MIN_OPPOSITE_LEG_DEG = 160;
 
 /** Number of bearing segments on each side of a turn to compute cumulative direction change (for gradual turns). */
 const TURN_WINDOW = 3;
@@ -308,6 +308,8 @@ export function findZigzagPeriod(
 
             const reversals = countZigzagReversals(forDetection);
             if (reversals < minReversals) continue;
+            if (!legsAreRoughlyParallel(forDetection)) continue;
+            if (!backAndForthBalanced(forDetection)) continue;
 
             const score = computeParallelismScore(forDetection);
             const isBetter =
@@ -324,18 +326,28 @@ export function findZigzagPeriod(
     return { segment: best.segment, reversals: best.reversals };
 }
 
+/** Reason the segment is not considered a zigzag pattern, or null if it passes. */
+export function zigzagFailureReason(
+    segment: { lat: number; lon: number }[],
+    minReversals: number = MIN_REVERSALS,
+    stride: number = 1
+): string | null {
+    const seg = stridedSegment(segment, stride);
+    if (seg.length < 3) return 'too few points';
+    const count = countZigzagReversals(seg);
+    if (count < minReversals) return `reversals ${count} < ${minReversals}`;
+    if (!backAndForthBalanced(seg)) return 'direction not balanced (not enough back-and-forth)';
+    if (!legsAreRoughlyParallel(seg)) return 'legs not roughly parallel';
+    return null;
+}
+
 /** Whether the segment has enough reversals and roughly parallel legs (imaging pattern). */
 export function isZigzagPattern(
     segment: { lat: number; lon: number }[],
     minReversals: number = MIN_REVERSALS,
     stride: number = 1
 ): boolean {
-    const seg = stridedSegment(segment, stride);
-    if (seg.length < 3) return false;
-    const count = countZigzagReversals(seg);
-    if (count < minReversals) return false;
-    if (!backAndForthBalanced(seg)) return false;
-    return legsAreRoughlyParallel(seg);
+    return zigzagFailureReason(segment, minReversals, stride) === null;
 }
 
 /**

@@ -3,7 +3,7 @@
  * Trace format: { icao, timestamp (Unix sec), trace: [ [offset_sec, lat, lon, ...], ... ] }
  *
  * High-rate traces are downsampled to ~intervalSec so turns show up as sharp bearing changes
- * (our app sees ~1 point per 20s, so 180° turns appear between consecutive segments).
+ * (our app sees ~1 point per 10s, so 180° turns appear between consecutive segments).
  *
  * Usage: npx ts-node scripts/run-zigzag-on-trace.ts <path-to-trace.json> [intervalSec] [stride] [windowMin]
  */
@@ -14,6 +14,7 @@ import { TIME_WINDOW } from '../src/constants';
 import {
     findZigzagPeriod,
     isZigzagPattern,
+    zigzagFailureReason,
     countZigzagReversals,
     getZigzagSubSegment,
     getLegSegments,
@@ -27,7 +28,7 @@ interface TraceFile {
     trace: [number, number, number, ...unknown[]][]; // [offset_sec, lat, lon, ...]
 }
 
-const DEFAULT_INTERVAL_SEC = 20;
+const DEFAULT_INTERVAL_SEC = 10;
 
 function loadTrace(
     filePath: string,
@@ -110,6 +111,10 @@ function main(): void {
     console.log('Best window: reversals =', period.reversals, 'points =', period.segment.length);
     const passed = isZigzagPattern(period.segment, undefined, stride);
     console.log('Passes isZigzagPattern (parallel legs etc.):', passed);
+    if (!passed) {
+        const reason = zigzagFailureReason(period.segment, undefined, stride);
+        console.log('  Failure reason:', reason ?? '(unknown)');
+    }
 
     if (passed) {
         const sub = getZigzagSubSegment(period.segment, stride);

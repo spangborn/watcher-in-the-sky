@@ -5,7 +5,7 @@
 import { fetchAircraftData } from '../adsb/adsb';
 import { insertFlightData, getRecentCoordinates, clearAircraft, wasPostedRecently, recordPosted } from '../database/database';
 import { calculateCentroid } from '../helpers/coordinateUtils';
-import { findZigzagPeriod, isZigzagPattern, getZigzagSubSegment } from '../helpers/zigzag';
+import { findZigzagPeriod, isZigzagPattern, zigzagFailureReason, getZigzagSubSegment } from '../helpers/zigzag';
 import { isNearbyAirport, reverse, getClosestLandmark } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
 import { TAR1090_URL, TIME_WINDOW } from '../constants';
@@ -43,18 +43,21 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
             TIME_WINDOW // minWindowMs: fixed 40-min window
         );
 
-        if (zigzagPeriod) {
-            const regFromCoords = recentCoords[0]?.r?.trim();
-            const regFromDb = regFromCoords ? null : (await getAircraftInfo(hex))?.registration ?? null;
-            const displayLabel = regFromCoords || regFromDb || hex || '?';
-            const linkPart = hex ? ` ${log.link(`${TAR1090_URL}?icao=${hex}`)}` : '';
-            const timestampDiff = zigzagPeriod.segment[zigzagPeriod.segment.length - 1].timestamp - zigzagPeriod.segment[0].timestamp;
-            const minutes = Math.floor(timestampDiff / 60000);
-            const seconds = ((timestampDiff % 60000) / 1000).toFixed(0);
-            log.dim(`Flight: ${displayLabel} Zig-zags: ${zigzagPeriod.reversals} Window Length: ${minutes} minutes and ${seconds} seconds${linkPart}`);
-        }
+        if (!zigzagPeriod) continue;
 
-        if (!zigzagPeriod || !isZigzagPattern(zigzagPeriod.segment)) continue;
+        const regFromCoords = recentCoords[0]?.r?.trim();
+        const displayLabel = regFromCoords || rFromApi || hex || '?';
+        const linkPart = hex ? ` ${log.link(`${TAR1090_URL}?icao=${hex}`)}` : '';
+        const timestampDiff = zigzagPeriod.segment[zigzagPeriod.segment.length - 1].timestamp - zigzagPeriod.segment[0].timestamp;
+        const minutes = Math.floor(timestampDiff / 60000);
+        const seconds = ((timestampDiff % 60000) / 1000).toFixed(0);
+        log.dim(`Flight: ${displayLabel} Zig-zags: ${zigzagPeriod.reversals} Window Length: ${minutes} minutes and ${seconds} seconds${linkPart}`);
+
+        if (!isZigzagPattern(zigzagPeriod.segment)) {
+            const reason = zigzagFailureReason(zigzagPeriod.segment);
+            log.dim(`Skipped ${displayLabel} (${zigzagPeriod.reversals} reversals): ${reason ?? 'unknown'}`);
+            continue;
+        }
 
         incrementZigzag();
         const { segment } = zigzagPeriod;
