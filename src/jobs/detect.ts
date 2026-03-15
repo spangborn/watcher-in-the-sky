@@ -15,6 +15,11 @@ import * as log from '../log';
 /** Altitude (ft) below which we consider aircraft on ground; excluded from curviness. */
 const GROUND_ALT_FT = 0;
 
+/** Min window (ms) for a segment to count as circling; avoids tiny wiggles. */
+const MIN_CIRCLE_WINDOW_MS = 5 * 60 * 1000;
+/** Step (ms) when sliding to find most curvy segment. */
+const CIRCLE_WINDOW_STEP_MS = 2 * 60 * 1000;
+
 export interface CurvyPeriodLogInfo {
     minutes: number;
     seconds: string;
@@ -26,8 +31,8 @@ function filterAirborne<T extends { alt_baro?: number | null }>(coords: T[]): T[
 }
 
 /**
- * Build the single 25-minute segment from recent coords (no sliding window).
- * Excludes ground points.
+ * Find the segment within recent coords that has the highest curviness (and meets the circling threshold).
+ * Uses a sliding window so the centroid/screenshot is centered on the actual circling, not a straight segment.
  */
 export function getCirclingSegment(
     coords: { lat: number; lon: number; timestamp: number; r: string | null; alt_baro: number | null }[],
@@ -37,17 +42,35 @@ export function getCirclingSegment(
     if (airborne.length < 2) return null;
 
     const segment = airborne.map((c) => ({ lat: c.lat, lon: c.lon, timestamp: c.timestamp }));
-    const curviness = calculateCurviness(segment);
 
-    const first = segment[0];
-    const last = segment[segment.length - 1];
-    const durationMs = last.timestamp - first.timestamp;
-    const clampedMs = Math.min(durationMs, timeWindow);
-    const logInfo: CurvyPeriodLogInfo = {
-        minutes: Math.floor(clampedMs / 60000),
-        seconds: ((clampedMs % 60000) / 1000).toFixed(0),
-    };
-    return { segment, curviness, logInfo };
+    let best: { segment: typeof segment; curviness: number; logInfo: CurvyPeriodLogInfo } | null = null;
+
+    for (let i = 0; i < segment.length - 1; i++) {
+        const t0 = segment[i].timestamp;
+        for (let durationMs = MIN_CIRCLE_WINDOW_MS; durationMs <= timeWindow; durationMs += CIRCLE_WINDOW_STEP_MS) {
+            const tEnd = t0 + durationMs;
+            let j = i;
+            while (j < segment.length && segment[j].timestamp <= tEnd) j++;
+            if (j > i) j--;
+            if (j <= i) continue;
+            const window = segment.slice(i, j + 1);
+            if (window.length < 2) continue;
+            const curviness = calculateCurviness(window);
+            if (curviness < TOTAL_CHANGE) continue;
+            const first = window[0];
+            const last = window[window.length - 1];
+            const windowMs = last.timestamp - first.timestamp;
+            const logInfo: CurvyPeriodLogInfo = {
+                minutes: Math.floor(windowMs / 60000),
+                seconds: ((windowMs % 60000) / 1000).toFixed(0),
+            };
+            if (!best || curviness > best.curviness) {
+                best = { segment: window, curviness, logInfo };
+            }
+        }
+    }
+
+    return best;
 }
 
 export function calculateCurviness(segment: { lat: number; lon: number }[]): number {

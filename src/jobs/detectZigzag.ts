@@ -4,7 +4,7 @@
 
 import { fetchAircraftData } from '../adsb/adsb';
 import { insertFlightData, getRecentCoordinates, clearAircraft, wasPostedRecently, recordPosted } from '../database/database';
-import { calculateCentroid } from '../helpers/coordinateUtils';
+import { calculateCentroid, getBoundsZoomCenter } from '../helpers/coordinateUtils';
 import { findZigzagPeriod, isZigzagPattern, zigzagFailureReason, getZigzagSubSegment } from '../helpers/zigzag';
 import { isNearbyAirport, reverse } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
@@ -89,8 +89,13 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
 
         const dateStr = new Date().toISOString().slice(0, 10);
         const link = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}&zoom=13&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}`;
-        // Screenshot URL is separate: center and zoom for framing.
-        const screenshotUrl = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}&zoom=13&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}&hideButtons&hideSidebar&screenshot&nowebgl`;
+        const frame = getBoundsZoomCenter(
+            segment.map((c) => ({ lat: c.lat, lon: c.lon })),
+            1200,
+            800,
+            1.15
+        );
+        const screenshotUrl = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}&zoom=${frame.zoom}&lat=${frame.lat.toFixed(4)}&lon=${frame.lon.toFixed(4)}&hideButtons&hideSidebar&screenshot&nowebgl`;
 
         log.success(`Found imaging pattern aircraft ${hex} (${zigzagPeriod.reversals} reversals): ${log.link(link)}`);
         const screenshot_data = await captureScreenshot(hex, screenshotUrl);

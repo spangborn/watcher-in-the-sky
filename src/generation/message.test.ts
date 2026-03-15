@@ -49,15 +49,28 @@ describe('buildCirclingMessage', () => {
         expect(msg).not.toContain('call sign');
     });
 
-    it('includes operator when set (circling): " operated by X" (no comma so "F-16 operated by USAF" reads cleanly)', () => {
+    it('includes operator when set (circling, reg only): ", operated by X"', () => {
         const msg = buildCirclingMessage(
             { hex: 'ABC', r: 'N352HP', operator: 'Acme Survey Co' },
             null,
             url
         );
-        expect(msg).toContain(' operated by Acme Survey Co');
+        expect(msg).toContain(', operated by Acme Survey Co');
         expect(msg).toContain('is circling');
-        expect(msg).toMatch(/^#N352HP operated by Acme Survey Co is circling\n/);
+        expect(msg).toMatch(/^#N352HP, operated by Acme Survey Co, is circling\n/);
+    });
+
+    it('includes operator with no comma when id has type (circling): "military F-16 operated by USAF"', () => {
+        const msg = buildCirclingMessage(
+            { hex: 'AE1234', r: '08-1234', type: 'F-16', isMilitary: true, operator: 'United States Air Force' },
+            null,
+            url,
+            { random: first }
+        );
+        expect(msg).toContain(' operated by United States Air Force');
+        expect(msg).not.toMatch(/, operated by United States Air Force,/);
+        expect(msg).toMatch(/a military (aircraft|F-16) operated by United States Air Force/);
+        expect(msg).toContain('is circling');
     });
 
     it('includes altitude when alt_baro is set', () => {

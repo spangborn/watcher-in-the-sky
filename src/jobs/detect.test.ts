@@ -73,30 +73,35 @@ describe('getCirclingSegment', () => {
         expect(getCirclingSegment(coords, timeWindow)).toBeNull();
     });
 
-    it('returns segment with curviness 0 for straight line (airborne)', () => {
+    it('returns null for straight line (no window meets circling threshold)', () => {
         const coords = withAlt([
             { lat: 34, lon: -118, timestamp: 0, r: 'N1' },
             { lat: 34.01, lon: -118, timestamp: 30000, r: 'N1' },
             { lat: 34.02, lon: -118, timestamp: 60000, r: 'N1' },
         ], 1000);
         const result = getCirclingSegment(coords, timeWindow);
-        expect(result).not.toBeNull();
-        expect(result!.segment.length).toBe(3);
-        expect(result!.curviness).toBe(0);
+        expect(result).toBeNull();
     });
 
-    it('returns segment when path has curvature (airborne)', () => {
-        const base = Date.now() - 120000;
-        const coords = withAlt([
-            { lat: 34, lon: -118, timestamp: base, r: 'N1' },
-            { lat: 34.001, lon: -118, timestamp: base + 20000, r: 'N1' },
-            { lat: 34.001, lon: -117.999, timestamp: base + 40000, r: 'N1' },
-            { lat: 34, lon: -117.999, timestamp: base + 60000, r: 'N1' },
-        ], 1000);
-        const result = getCirclingSegment(coords, 70000);
+    it('returns most-curvy segment when path has enough curvature (airborne)', () => {
+        const base = Date.now() - 660000;
+        const n = 60;
+        const pts: { lat: number; lon: number; timestamp: number; r: string }[] = [];
+        const r = 0.005;
+        for (let i = 0; i <= n; i++) {
+            const t = (i / n) * 2 * Math.PI * 4;
+            pts.push({
+                lat: 34 + r * Math.cos(t),
+                lon: -118 + r * Math.sin(t),
+                timestamp: base + i * 10000,
+                r: 'N1',
+            });
+        }
+        const coords = withAlt(pts, 1000);
+        const result = getCirclingSegment(coords, 660000);
         expect(result).not.toBeNull();
         expect(result!.segment.length).toBeGreaterThanOrEqual(2);
-        expect(result!.curviness).toBeGreaterThan(0);
+        expect(result!.curviness).toBeGreaterThanOrEqual(1440);
     });
 });
 

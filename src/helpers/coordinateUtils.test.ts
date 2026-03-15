@@ -4,6 +4,7 @@ import {
     toDegrees,
     computeBearing,
     calculateCentroid,
+    getBoundsZoomCenter,
 } from './coordinateUtils';
 
 describe('toRadians', () => {
@@ -77,5 +78,26 @@ describe('calculateCentroid', () => {
         const c = calculateCentroid(coords);
         expect(c.lat).toBeCloseTo(34.005, 5);
         expect(c.lon).toBeCloseTo(-117.996667, 5);
+    });
+});
+
+describe('getBoundsZoomCenter', () => {
+    it('returns center at centroid of points and zoom that fits viewport', () => {
+        const points = [
+            { lat: 41, lon: -112 },
+            { lat: 41.1, lon: -111.9 },
+        ];
+        const r = getBoundsZoomCenter(points, 1200, 800);
+        expect(r.lat).toBeCloseTo(41.05, 2);
+        expect(r.lon).toBeCloseTo(-111.95, 2);
+        expect(r.zoom).toBeGreaterThanOrEqual(0);
+        expect(r.zoom).toBeLessThanOrEqual(18);
+    });
+    it('returns higher zoom for smaller extent', () => {
+        const small = [{ lat: 41, lon: -112 }, { lat: 41.01, lon: -111.99 }];
+        const large = [{ lat: 40, lon: -113 }, { lat: 42, lon: -111 }];
+        const rSmall = getBoundsZoomCenter(small, 1200, 800);
+        const rLarge = getBoundsZoomCenter(large, 1200, 800);
+        expect(rSmall.zoom).toBeGreaterThan(rLarge.zoom);
     });
 });
