@@ -6,7 +6,7 @@ import { fetchAircraftData } from '../adsb/adsb';
 import { insertFlightData, getRecentCoordinates, clearAircraft, wasPostedRecently, recordPosted } from '../database/database';
 import { calculateCentroid } from '../helpers/coordinateUtils';
 import { findZigzagPeriod, isZigzagPattern, zigzagFailureReason, getZigzagSubSegment } from '../helpers/zigzag';
-import { isNearbyAirport, reverse, getClosestLandmark } from '../pelias/pelias';
+import { isNearbyAirport, reverse } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
 import { TAR1090_URL, TIME_WINDOW } from '../constants';
 import { captureScreenshot } from '../screenshot/screenshot';
@@ -87,13 +87,6 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
             log.err(`Error attempting to reverse geocode: ${err}`);
         }
 
-        let landmark: { name: string; distanceMiles: number } | null = null;
-        try {
-            landmark = await getClosestLandmark(centroid.lat, centroid.lon);
-        } catch (err) {
-            log.warn(`Error fetching closest landmark: ${err}`);
-        }
-
         const dateStr = new Date().toISOString().slice(0, 10);
         const link = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}&zoom=13&lat=${centroid.lat.toFixed(4)}&lon=${centroid.lon.toFixed(4)}`;
         // Screenshot URL is separate: center and zoom for framing.
@@ -136,10 +129,9 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
                 squawk: ac.squawk,
             },
             reverseGeoProps,
-            link,
-            { landmark }
+            link
         );
-        const imageAlt = buildScreenshotAlt(reverseGeoProps, landmark, ac.flight);
+        const imageAlt = buildScreenshotAlt(reverseGeoProps, null, ac.flight);
         const success = await postToBluesky(ac, message, screenshot_data, imageAlt);
 
         if (success) {
