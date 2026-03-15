@@ -4,8 +4,8 @@ import { computeBearing } from './coordinateUtils';
 const MIN_TURN_DEG = 70;
 /** Minimum number of alternating reversals (parallel legs) for imaging pattern. 3 reversals = 4 legs (survey). */
 const MIN_REVERSALS = 3;
-/** Minimum points between reversals (sustained leg); filters tight circuits and noisy tracks. */
-const MIN_POINTS_PER_LEG = 3;
+/** Minimum points between reversals (sustained leg); filters tight circuits and noisy tracks. ~8 points ≈ 80s at 10s refresh. */
+const MIN_POINTS_PER_LEG = 8;
 /** Turn must be toward opposite direction (not shallow); survey ~180°, circles ~90°. */
 const MIN_OPPOSITE_DEG = 80;
 /** Max bearing spread (degrees) for legs in the same direction to count as parallel. */
