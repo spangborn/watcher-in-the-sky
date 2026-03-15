@@ -190,12 +190,14 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                     ? [...recentCoords].reverse().find((c) => c.r != null && c.r.trim() !== '')?.r ?? null
                     : null;
                 let registration = rFromApi ?? rFromHistory ?? null;
+                let operator: string | null = null;
                 // Aircraft type: prefer API description (type_desc/desc), then Mictronics description, then type code, then API "t"
                 let aircraftType = ac.type_desc ?? ac.desc ?? ac.t ?? null;
                 if (hex) {
                     const mictronics = await getAircraftInfo(hex);
                     if (mictronics) {
                         registration = registration ?? mictronics.registration ?? null;
+                        operator = mictronics.operator ?? null;
                         const desc = mictronics.description ?? null;
                         const typ = mictronics.type ?? null;
                         aircraftType = aircraftType ?? desc ?? typ ?? ac.t ?? null;
@@ -214,6 +216,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                         r: registration,
                         flight,
                         type: aircraftType,
+                        operator,
                         isMilitary: typeof ac.dbFlags === 'number' && (ac.dbFlags & 1) === 1,
                         alt_baro,
                         gs: ac.gs,

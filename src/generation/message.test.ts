@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCirclingMessage, buildScreenshotAlt } from './message';
+import { buildCirclingMessage, buildImagingMessage, buildScreenshotAlt } from './message';
 
 const url = 'https://example.com/map?icao=ABC123';
 
@@ -47,6 +47,17 @@ describe('buildCirclingMessage', () => {
             url
         );
         expect(msg).not.toContain('call sign');
+    });
+
+    it('includes operator when set (circling): " operated by X" (no comma so "F-16 operated by USAF" reads cleanly)', () => {
+        const msg = buildCirclingMessage(
+            { hex: 'ABC', r: 'N352HP', operator: 'Acme Survey Co' },
+            null,
+            url
+        );
+        expect(msg).toContain(' operated by Acme Survey Co');
+        expect(msg).toContain('is circling');
+        expect(msg).toMatch(/^#N352HP operated by Acme Survey Co is circling\n/);
     });
 
     it('includes altitude when alt_baro is set', () => {
@@ -461,6 +472,20 @@ describe('buildCirclingMessage (deterministic grammar branches)', () => {
             expect(msg).toContain('5.0 miles from the Wildfire');
             expect(msg).toContain(url);
         });
+    });
+});
+
+describe('buildImagingMessage', () => {
+    it('includes operator when set (imaging): ", operated by X" (comma for imaging; no-comma only for circling)', () => {
+        const msg = buildImagingMessage(
+            { hex: 'ABC', r: 'N352HP', operator: 'Acme Survey Co' },
+            null,
+            url
+        );
+        expect(msg).toContain(', operated by Acme Survey Co');
+        expect(msg).toContain('appears to be on an imaging/survey pattern');
+        expect(msg).toMatch(/^#N352HP, operated by Acme Survey Co, appears to be on an imaging\/survey pattern\n/);
+        expect(msg).toContain(url);
     });
 });
 

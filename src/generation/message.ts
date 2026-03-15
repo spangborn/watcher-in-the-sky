@@ -9,6 +9,8 @@ export interface AircraftFields {
     flight?: string | null;
     /** Aircraft type (e.g. from API "t" or mictronics DB) */
     type?: string | null;
+    /** Operator (e.g. from aircraft DB); shown in post when present */
+    operator?: string | null;
     /** Military flag (e.g. from API dbFlags & 1) */
     isMilitary?: boolean;
     alt_baro?: number | string | null;
@@ -117,6 +119,13 @@ function locationPhrase(props: ReverseGeoProperties | null, random: () => number
 }
 
 /** Optional "call sign #X" if we have a distinct callsign (hashtag) */
+/** Operator phrase: for circling use no comma ("F-16 operated by USAF"); for imaging use comma (", operated by X"). */
+function operatorPart(ac: AircraftFields, commaBeforeOperated = false): string {
+    const op = ac.operator?.trim();
+    if (!op) return '';
+    return commaBeforeOperated ? `, operated by ${op}` : ` operated by ${op}`;
+}
+
 function callSignPart(ac: AircraftFields): string {
     const call = ac.flight?.trim();
     const reg = ac.r?.trim();
@@ -198,10 +207,11 @@ export function buildCirclingMessage(
     const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
     const middleWithSpace = middle ? (middle.startsWith(' ') ? middle : ' ' + middle) : '';
     const idCall = call ? `${id},${call}` : id;
-    const beforeVerb = idCall.includes(',') ? ', is circling' : ' is circling';
+    const idCallOp = idCall + operatorPart(ac);
+    const beforeVerb = idCallOp.includes(',') ? ', is circling' : ' is circling';
     const main = loc
-        ? `${idCall}${beforeVerb} over ${loc}${middleWithSpace}`
-        : `${idCall}${beforeVerb}${middleWithSpace}`;
+        ? `${idCallOp}${beforeVerb} over ${loc}${middleWithSpace}`
+        : `${idCallOp}${beforeVerb}${middleWithSpace}`;
 
     return `${normalizeSpaces(main)}\n${viewMoreUrl}`;
 }
@@ -231,12 +241,13 @@ export function buildImagingMessage(
     const middle = clauseParts + (trailing ? (clauseParts ? ', ' : '') + trailing : '');
     const middleWithSpace = middle ? (middle.startsWith(' ') ? middle : ' ' + middle) : '';
     const idCall = call ? `${id},${call}` : id;
-    const beforeVerb = idCall.includes(',') ? ', appears to be on an imaging/survey pattern' : ' appears to be on an imaging/survey pattern';
+    const idCallOp = idCall + operatorPart(ac, true);
+    const beforeVerb = idCallOp.includes(',') ? ', appears to be on an imaging/survey pattern' : ' appears to be on an imaging/survey pattern';
     const verb = loc
         ? `${beforeVerb} over ${loc}${middleWithSpace}`
         : `${beforeVerb}${middleWithSpace}`;
 
-    return `${normalizeSpaces(`${idCall}${verb}`)}\n${viewMoreUrl}`;
+    return `${normalizeSpaces(`${idCallOp}${verb}`)}\n${viewMoreUrl}`;
 }
 
 /**

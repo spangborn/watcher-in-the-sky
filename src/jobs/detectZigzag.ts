@@ -99,11 +99,13 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
             ? [...recentCoords].reverse().find((c) => c.r != null && c.r.trim() !== '')?.r ?? null
             : null;
         let registration = rFromApi ?? rFromHistory ?? null;
+        let operator: string | null = null;
         let aircraftType = ac.type_desc ?? ac.desc ?? ac.t ?? null;
         if (hex) {
             const mictronics = await getAircraftInfo(hex);
             if (mictronics) {
                 registration = registration ?? mictronics.registration ?? null;
+                operator = mictronics.operator ?? null;
                 const desc = mictronics.description ?? null;
                 const typ = mictronics.type ?? null;
                 aircraftType = aircraftType ?? desc ?? typ ?? ac.t ?? null;
@@ -123,6 +125,7 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
                 r: registration,
                 flight,
                 type: aircraftType,
+                operator,
                 isMilitary: typeof ac.dbFlags === 'number' && (ac.dbFlags & 1) === 1,
                 alt_baro,
                 gs: ac.gs,
