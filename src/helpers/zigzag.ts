@@ -10,10 +10,10 @@ const MIN_LEG_DISTANCE_M = 2000;
 const MIN_DIRECTION_BALANCE_RATIO = 0.4;
 /** Turn must be toward opposite direction (not shallow); survey ~180°, circles ~90°. */
 const MIN_OPPOSITE_DEG = 80;
-/** Max bearing spread (degrees) for legs in the same direction to count as parallel. Critical for imaging. */
-const PARALLEL_TOLERANCE_DEG = 15;
+/** Max bearing spread (degrees) for legs in the same direction to count as parallel. Legs must be almost completely parallel. */
+const PARALLEL_TOLERANCE_DEG = 6;
 /** Min angle (degrees) between the two leg directions for imaging (should be ~180). */
-const MIN_OPPOSITE_LEG_DEG = 160;
+const MIN_OPPOSITE_LEG_DEG = 170;
 /** Max ratio of longest to shortest leg length (among legs >= MIN_LEG_DISTANCE_M). Rejects one long transit + short wiggles. */
 const MAX_LEG_LENGTH_RATIO = 5;
 /** When checking leg consistency, extend the window by this many points on each side to catch long transit legs. */
@@ -290,6 +290,8 @@ export function countZigzagReversals(segment: { lat: number; lon: number }[]): n
 
 export interface ZigzagPeriod {
     segment: { lat: number; lon: number; timestamp: number }[];
+    /** When set, this segment was used for leg-length validation (extended window). Use for pass/fail so it matches findZigzagPeriod. */
+    segmentForValidation?: { lat: number; lon: number; timestamp: number }[];
     reversals: number;
 }
 
@@ -320,7 +322,12 @@ export function findZigzagPeriod(
     if (coords.length < 3) return null;
 
     const stepMs = minWindowMs >= maxWindowMs ? maxWindowMs + 1 : 2 * 60 * 1000;
-    let best: { segment: typeof coords; reversals: number; score: number } | null = null;
+    let best: {
+        segment: typeof coords;
+        segmentForValidation: typeof coords;
+        reversals: number;
+        score: number;
+    } | null = null;
 
     for (let i = 0; i < coords.length; i++) {
         const t0 = coords[i].timestamp;
@@ -350,13 +357,17 @@ export function findZigzagPeriod(
                 score > best.score ||
                 (score === best.score && reversals > best.reversals);
             if (isBetter) {
-                best = { segment: window, reversals, score };
+                best = { segment: window, segmentForValidation: extendedWindow, reversals, score };
             }
         }
     }
 
     if (!best) return null;
-    return { segment: best.segment, reversals: best.reversals };
+    return {
+        segment: best.segment,
+        segmentForValidation: best.segmentForValidation,
+        reversals: best.reversals,
+    };
 }
 
 /** Reason the segment is not considered a zigzag pattern, or null if it passes. */

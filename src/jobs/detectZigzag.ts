@@ -53,8 +53,9 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
         const seconds = ((timestampDiff % 60000) / 1000).toFixed(0);
         log.dim(`Flight: ${displayLabel} Zig-zags: ${zigzagPeriod.reversals} Window Length: ${minutes} minutes and ${seconds} seconds${linkPart}`);
 
-        if (!isZigzagPattern(zigzagPeriod.segment)) {
-            const reason = zigzagFailureReason(zigzagPeriod.segment);
+        const toValidate = zigzagPeriod.segmentForValidation ?? zigzagPeriod.segment;
+        if (!isZigzagPattern(toValidate)) {
+            const reason = zigzagFailureReason(toValidate);
             log.dim(`Skipped ${displayLabel} (${zigzagPeriod.reversals} reversals): ${reason ?? 'unknown'}`);
             continue;
         }

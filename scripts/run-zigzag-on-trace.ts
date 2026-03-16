@@ -134,10 +134,11 @@ function main(): void {
     }
 
     console.log('Best window: reversals =', period.reversals, 'points =', period.segment.length);
-    const passed = isZigzagPattern(period.segment, undefined, stride);
+    const toValidate = period.segmentForValidation ?? period.segment;
+    const passed = isZigzagPattern(toValidate, undefined, stride);
     console.log('Passes isZigzagPattern (parallel legs etc.):', passed);
     if (!passed) {
-        const reason = zigzagFailureReason(period.segment, undefined, stride);
+        const reason = zigzagFailureReason(toValidate, undefined, stride);
         console.log('  Failure reason:', reason ?? '(unknown)');
     }
 
