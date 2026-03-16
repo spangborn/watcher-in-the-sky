@@ -235,7 +235,7 @@ function getLegDistancesM(segment: { lat: number; lon: number }[]): number[] {
 }
 
 /** True if leg lengths are reasonably consistent (imaging has similar-length passes, not one long leg + short wiggles). */
-function legsHaveConsistentLength(segment: { lat: number; lon: number }[]): boolean {
+export function legsHaveConsistentLength(segment: { lat: number; lon: number }[]): boolean {
     const distances = getLegDistancesM(segment);
     const qualifying = distances.filter((d) => d >= MIN_LEG_DISTANCE_M);
     if (qualifying.length < 2) return true;

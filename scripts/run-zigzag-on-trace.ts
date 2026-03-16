@@ -18,6 +18,7 @@ import {
     countZigzagReversals,
     getZigzagSubSegment,
     getLegSegments,
+    legsHaveConsistentLength,
 } from '../src/helpers/zigzag';
 import { calculateCentroid, distanceMeters } from '../src/helpers/coordinateUtils';
 
@@ -93,21 +94,42 @@ function main(): void {
     const period = findZigzagPeriod(coords, windowMs, minReversals, stride, windowMs);
 
     if (!period) {
+        const LEG_CHECK_EXTEND_POINTS = 30;
+        const minRev = minReversals ?? 3;
         let maxReversals = 0;
+        let bestCandidate: { window: typeof coords; i: number; j: number; rev: number } | null = null;
         for (let i = 0; i < coords.length; i++) {
             const endIdx = coords.findIndex(
                 (c, idx) => idx > i && c.timestamp - coords[i].timestamp > windowMs
             );
             const window = endIdx === -1 ? coords.slice(i) : coords.slice(i, endIdx);
+            const j = endIdx === -1 ? coords.length - 1 : endIdx - 1;
             if (window.length >= 3) {
-                const rev = countZigzagReversals(
-                    stride > 1 ? window.filter((_, j) => j % stride === 0) : window
-                );
-                maxReversals = Math.max(maxReversals, rev);
+                const strided = stride > 1 ? window.filter((_, idx) => idx % stride === 0) : window;
+                const rev = countZigzagReversals(strided);
+                if (rev > maxReversals) maxReversals = rev;
+                if (rev >= minRev && (!bestCandidate || rev > bestCandidate.rev)) {
+                    bestCandidate = { window, i, j, rev };
+                }
             }
         }
-        const minRev = minReversals ?? 3;
         console.log('No window with >= ' + minRev + ' reversals. Max reversals in any', windowMs / 60000, 'min window:', maxReversals);
+        if (bestCandidate) {
+            const reason = zigzagFailureReason(bestCandidate.window, minRev, stride);
+            if (reason !== null) {
+                console.log('Why (best candidate window):', reason);
+            } else {
+                const iExt = Math.max(0, bestCandidate.i - LEG_CHECK_EXTEND_POINTS);
+                const jExt = Math.min(coords.length - 1, bestCandidate.j + LEG_CHECK_EXTEND_POINTS);
+                const extended = coords.slice(iExt, jExt + 1);
+                const extendedStrided = stride > 1 ? extended.filter((_, idx) => idx % stride === 0) : extended;
+                if (!legsHaveConsistentLength(extendedStrided)) {
+                    console.log('Why (best candidate window): leg lengths too inconsistent on extended window (transit + short wiggles)');
+                } else {
+                    console.log('Why (best candidate window): passed all checks on candidate but no window was chosen (tie or scoring).');
+                }
+            }
+        }
         process.exit(0);
     }
 
