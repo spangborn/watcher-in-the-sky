@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@atproto/api": "^0.19.0",
+    "@atproto/api": "^0.19.3",
     "adm-zip": "^0.5.16",
     "axios": "^1.13.6",
     "axios-cache-interceptor": "^1.12.0",
