@@ -38,29 +38,42 @@ export function insertFlightData(
     r: string | null,
     alt_baro: number | null,
     lat: number | null,
-    lon: number | null
+    lon: number | null,
 ): void {
     db.run(
         `INSERT OR IGNORE INTO aircraft_data (hex, timestamp, r, alt_baro, lat, lon) VALUES (?, ?, ?, ?, ?, ?)`,
         [hex, timestamp, r, alt_baro, lat, lon],
-        (err: Error | null) => { // Explicitly type `err`
+        (err: Error | null) => {
+            // Explicitly type `err`
             if (err) log.err(`Database insert error: ${err.message}`);
-        }
+        },
     );
 }
 
-export function getRecentCoordinates(hex: string, cutoff: number): Promise<{ lat: number; lon: number; timestamp: number; r: string | null; alt_baro: number | null }[]> {
+export function getRecentCoordinates(
+    hex: string,
+    cutoff: number,
+): Promise<{ lat: number; lon: number; timestamp: number; r: string | null; alt_baro: number | null }[]> {
     return new Promise((resolve, reject) => {
         db.all(
             `SELECT lat, lon, timestamp, r, alt_baro FROM aircraft_data WHERE hex = ? AND timestamp >= ? ORDER BY timestamp ASC`,
             [hex, cutoff],
-            (err: Error | null, rows: { lat: number; lon: number; timestamp: number; r: string | null; alt_baro: number | null }[]) => {
+            (
+                err: Error | null,
+                rows: {
+                    lat: number;
+                    lon: number;
+                    timestamp: number;
+                    r: string | null;
+                    alt_baro: number | null;
+                }[],
+            ) => {
                 if (err) {
                     reject(err);
                 } else {
                     resolve(rows);
                 }
-            }
+            },
         );
     });
 }
@@ -76,7 +89,7 @@ export function pruneOldRecords(cutoff: number): void {
 }
 
 export function clearAircraft(hex: string): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         db.run(`DELETE FROM aircraft_data WHERE hex = ?`, [hex], (err: Error | null) => {
             if (err) {
                 log.err(`Error removing aircraft from history: ${err.message}`);
@@ -102,7 +115,7 @@ export function wasPostedRecently(hex: string): Promise<boolean> {
                     return;
                 }
                 resolve(Date.now() - row.posted_at < POST_COOLDOWN_MS);
-            }
+            },
         );
     });
 }
@@ -116,7 +129,7 @@ export function recordPosted(hex: string): Promise<void> {
             (err: Error | null) => {
                 if (err) reject(err);
                 else resolve();
-            }
+            },
         );
     });
 }
@@ -130,7 +143,7 @@ export function getTrackingAircraftCount(): Promise<number> {
             (err: Error | null, row: { n: number } | undefined) => {
                 if (err) reject(err);
                 else resolve(row?.n ?? 0);
-            }
+            },
         );
     });
 }

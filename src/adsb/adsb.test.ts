@@ -22,4 +22,3 @@ describe('fetchAircraftData', () => {
         expect(list).toEqual([]);
     });
 });
-

@@ -33,7 +33,7 @@ export function calculateCentroid(coords: { lat: number; lon: number }[]): { lat
     let totalLat = 0;
     let totalLon = 0;
 
-    coords.forEach(coord => {
+    coords.forEach((coord) => {
         totalLat += coord.lat;
         totalLon += coord.lon;
     });
@@ -71,12 +71,15 @@ export function getBoundsZoomCenter(
     points: { lat: number; lon: number }[],
     viewportWidthPx: number,
     viewportHeightPx: number,
-    paddingFactor = 1.15
+    paddingFactor = 1.15,
 ): { lat: number; lon: number; zoom: number } {
     if (points.length === 0) {
         return { lat: 0, lon: 0, zoom: 2 };
     }
-    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    let xMin = Infinity,
+        xMax = -Infinity,
+        yMin = Infinity,
+        yMax = -Infinity;
     for (const p of points) {
         const { x, y } = latLonToWebMercator(p.lat, p.lon);
         xMin = Math.min(xMin, x);

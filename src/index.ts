@@ -7,7 +7,14 @@ import { detectCirclingAircraft } from './jobs/detect';
 import { detectZigzagAircraft } from './jobs/detectZigzag';
 import { pruneOldRecords } from './database/database';
 import { CronJob } from 'cron';
-import { PRUNE_TIME, DETECTION_INTERVAL_MS, ENABLE_CIRCLING_DETECTION, ENABLE_ZIGZAG_DETECTION, AIRCRAFT_INFO_DB, HEALTH_PORT } from './constants';
+import {
+    PRUNE_TIME,
+    DETECTION_INTERVAL_MS,
+    ENABLE_CIRCLING_DETECTION,
+    ENABLE_ZIGZAG_DETECTION,
+    AIRCRAFT_INFO_DB,
+    HEALTH_PORT,
+} from './constants';
 import { RateLimitError } from './adsb/adsb';
 import { healthHandler } from './health/route';
 import * as log from './log';
@@ -66,7 +73,9 @@ new CronJob('*/30 * * * * *', () => pruneOldRecords(Date.now() - PRUNE_TIME)).st
     log.info('Running initial detection...');
     try {
         if (!ENABLE_CIRCLING_DETECTION && !ENABLE_ZIGZAG_DETECTION) {
-            log.warn('All detection jobs are disabled (ENABLE_CIRCLING_DETECTION and ENABLE_ZIGZAG_DETECTION).');
+            log.warn(
+                'All detection jobs are disabled (ENABLE_CIRCLING_DETECTION and ENABLE_ZIGZAG_DETECTION).',
+            );
         } else {
             const aircraftData = await fetchAircraftData();
             if (ENABLE_CIRCLING_DETECTION) await detectCirclingAircraft(detectionIntervalMs, aircraftData);

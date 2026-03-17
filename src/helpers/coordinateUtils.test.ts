@@ -94,8 +94,14 @@ describe('getBoundsZoomCenter', () => {
         expect(r.zoom).toBeLessThanOrEqual(18);
     });
     it('returns higher zoom for smaller extent', () => {
-        const small = [{ lat: 41, lon: -112 }, { lat: 41.01, lon: -111.99 }];
-        const large = [{ lat: 40, lon: -113 }, { lat: 42, lon: -111 }];
+        const small = [
+            { lat: 41, lon: -112 },
+            { lat: 41.01, lon: -111.99 },
+        ];
+        const large = [
+            { lat: 40, lon: -113 },
+            { lat: 42, lon: -111 },
+        ];
         const rSmall = getBoundsZoomCenter(small, 1200, 800);
         const rLarge = getBoundsZoomCenter(large, 1200, 800);
         expect(rSmall.zoom).toBeGreaterThan(rLarge.zoom);

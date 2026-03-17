@@ -42,7 +42,9 @@ const DATA_DIR = (process.env.DATA_DIR || './data').replace(/\/$/, '');
  *  - 'jetphotos' → 'jetphotos'
  *  - 'both' → 'both'
  */
-export const AIRCRAFT_PHOTO_MODE: AircraftPhotoMode = parseAircraftPhotoMode(process.env.AIRCRAFT_PHOTO_ENABLED);
+export const AIRCRAFT_PHOTO_MODE: AircraftPhotoMode = parseAircraftPhotoMode(
+    process.env.AIRCRAFT_PHOTO_ENABLED,
+);
 
 /** Whether any aircraft photo fetching is enabled at all. */
 export const AIRCRAFT_PHOTO_ENABLED = AIRCRAFT_PHOTO_MODE !== 'off';
@@ -54,11 +56,14 @@ export const AIRCRAFT_PHOTO_USE_JETPHOTOS =
     AIRCRAFT_PHOTO_MODE === 'jetphotos' || AIRCRAFT_PHOTO_MODE === 'both';
 
 /** On-disk cache dir for aircraft photos/misses. */
-export const AIRCRAFT_PHOTO_CACHE_DIR = process.env.AIRCRAFT_PHOTO_CACHE_DIR || (DATA_DIR + '/aircraft_photos');
+export const AIRCRAFT_PHOTO_CACHE_DIR = process.env.AIRCRAFT_PHOTO_CACHE_DIR || DATA_DIR + '/aircraft_photos';
 /** Optional path to SQLite DB from Mictronics aircraft data (see scripts/create-aircraft-db.ts). Derived from DATA_DIR when unset; set to empty string to disable. */
-export const AIRCRAFT_INFO_DB = process.env.AIRCRAFT_INFO_DB !== undefined ? process.env.AIRCRAFT_INFO_DB : DATA_DIR + '/aircraft_info.db';
+export const AIRCRAFT_INFO_DB =
+    process.env.AIRCRAFT_INFO_DB !== undefined
+        ? process.env.AIRCRAFT_INFO_DB
+        : DATA_DIR + '/aircraft_info.db';
 /** Path to SQLite DB for tracking aircraft positions and post cooldowns. Derived from DATA_DIR when unset. */
-export const TRACKING_DB = process.env.TRACKING_DB || (DATA_DIR + '/aircraft.db');
+export const TRACKING_DB = process.env.TRACKING_DB || DATA_DIR + '/aircraft.db';
 
 /** Detection loop interval (ms). Circling and zig-zag jobs run each interval. 10s gives higher data resolution. */
 export const DETECTION_INTERVAL_MS = parseInt(process.env.DETECTION_INTERVAL_MS || '10000', 10);

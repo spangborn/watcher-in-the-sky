@@ -14,7 +14,9 @@ dotenv.config();
 
 const DATA_DIR = (process.env.DATA_DIR || './data').replace(/\/$/, '');
 const AIRCRAFT_INFO_DB =
-    process.env.AIRCRAFT_INFO_DB !== undefined ? process.env.AIRCRAFT_INFO_DB : path.join(DATA_DIR, 'aircraft_info.db');
+    process.env.AIRCRAFT_INFO_DB !== undefined
+        ? process.env.AIRCRAFT_INFO_DB
+        : path.join(DATA_DIR, 'aircraft_info.db');
 
 function main(): void {
     const dbPath = path.resolve(process.cwd(), AIRCRAFT_INFO_DB);

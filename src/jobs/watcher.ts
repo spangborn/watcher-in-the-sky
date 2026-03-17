@@ -1,8 +1,8 @@
-import { TAR1090_URL } from "../constants";
-import { fetchAircraftData, RateLimitError, AircraftApi } from "../adsb/adsb";
-import { captureScreenshot } from "../screenshot/screenshot";
-import { postToBluesky } from "../bluesky/bluesky";
-import * as log from "../log";
+import { TAR1090_URL } from '../constants';
+import { fetchAircraftData, RateLimitError, AircraftApi } from '../adsb/adsb';
+import { captureScreenshot } from '../screenshot/screenshot';
+import { postToBluesky } from '../bluesky/bluesky';
+import * as log from '../log';
 
 export async function detectAircraftFromList(): Promise<void> {
     let aircraftData: AircraftApi[];
@@ -15,12 +15,18 @@ export async function detectAircraftFromList(): Promise<void> {
         }
         throw err;
     }
-    const watchlist = ["N352HP", "N353HP", "N354HP"];
-    
-    log.info("Checking for aircraft on watchlist...");
+    const watchlist = ['N352HP', 'N353HP', 'N354HP'];
+
+    log.info('Checking for aircraft on watchlist...');
     for (const aircraft of aircraftData) {
         const { hex, flight, alt_baro, lat, lon } = aircraft;
-        if (flight && lat !== undefined && lon !== undefined && watchlist.includes(flight.trim()) && alt_baro !== "ground") {
+        if (
+            flight &&
+            lat !== undefined &&
+            lon !== undefined &&
+            watchlist.includes(flight.trim()) &&
+            alt_baro !== 'ground'
+        ) {
             // We found an aircraft on the watchlist
             log.success(`Found ${flight.trim()} on the watchlist`);
 
@@ -29,16 +35,14 @@ export async function detectAircraftFromList(): Promise<void> {
 
             const screenshot_data = await captureScreenshot(hex!, screenshotUrl);
             const message = `${'#' + flight.trim()} was detected in the air.\nView more: ${link}`;
-            await postToBluesky(
-                { flight },
-                message,
-                [{
+            await postToBluesky({ flight }, message, [
+                {
                     data: screenshot_data,
                     mimeType: 'image/jpeg',
                     alt: `Screenshot of the flight path of the flight ${flight.trim()}`,
                     aspectRatio: { width: 1200, height: 800 },
-                }]
-            );
+                },
+            ]);
         }
     }
 }

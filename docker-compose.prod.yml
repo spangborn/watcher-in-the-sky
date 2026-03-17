@@ -1,13 +1,13 @@
 services:
-  watcher:
-    build:
-      target: production
-    command: npm run start
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - TZ=America/Denver
-      - DATA_DIR=/home/node/app/data
-    volumes:
-      - aircraft_db:/home/node/app/data
+    watcher:
+        build:
+            target: production
+        command: npm run start
+        restart: unless-stopped
+        ports:
+            - '3000:3000'
+        environment:
+            - TZ=America/Denver
+            - DATA_DIR=/home/node/app/data
+        volumes:
+            - aircraft_db:/home/node/app/data

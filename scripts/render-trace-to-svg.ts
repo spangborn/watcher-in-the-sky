@@ -7,8 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { TIME_WINDOW } from '../src/constants';
-import { findZigzagPeriod, getZigzagSubSegment, trimLegsToStraightWithGroupDirection } from '../src/helpers/zigzag';
+import { findZigzagPeriod, trimLegsToStraightWithGroupDirection } from '../src/helpers/zigzag';
 import { calculateCentroid, computeBearing, distanceMeters } from '../src/helpers/coordinateUtils';
 
 interface TraceFile {
@@ -48,7 +47,7 @@ function loadTrace(filePath: string): { lat: number; lon: number; timestamp: num
 
 function downsampleByInterval(
     coords: { lat: number; lon: number; timestamp: number }[],
-    intervalSec: number
+    intervalSec: number,
 ): { lat: number; lon: number; timestamp: number }[] {
     if (intervalSec <= 0 || coords.length <= 1) return coords;
     const out: typeof coords = [coords[0]];
@@ -63,8 +62,16 @@ function downsampleByInterval(
 }
 
 /** Bounds in Web Mercator (meters). */
-function mercatorBounds(points: { lat: number; lon: number }[]): { xMin: number; xMax: number; yMin: number; yMax: number } {
-    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+function mercatorBounds(points: { lat: number; lon: number }[]): {
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+} {
+    let xMin = Infinity,
+        xMax = -Infinity,
+        yMin = Infinity,
+        yMax = -Infinity;
     for (const p of points) {
         const { x, y } = latLonToWebMercator(p.lat, p.lon);
         xMin = Math.min(xMin, x);
@@ -79,12 +86,12 @@ function mercatorBounds(points: { lat: number; lon: number }[]): { xMin: number;
 function fitMercatorToViewport(
     b: { xMin: number; xMax: number; yMin: number; yMax: number },
     width: number,
-    height: number
+    height: number,
 ): { scale: number; centerX: number; centerY: number } {
     const padX = (b.xMax - b.xMin) * PAD_PCT || 1;
     const padY = (b.yMax - b.yMin) * PAD_PCT || 1;
-    const rangeX = (b.xMax + padX) - (b.xMin - padX);
-    const rangeY = (b.yMax + padY) - (b.yMin - padY);
+    const rangeX = b.xMax + padX - (b.xMin - padX);
+    const rangeY = b.yMax + padY - (b.yMin - padY);
     const scale = Math.min(width / rangeX, height / rangeY);
     const centerX = (b.xMin + b.xMax) / 2;
     const centerY = (b.yMin + b.yMax) / 2;
@@ -97,7 +104,7 @@ function latLonToXY(
     lon: number,
     fit: { scale: number; centerX: number; centerY: number },
     width: number,
-    height: number
+    height: number,
 ): { x: number; y: number } {
     const { x: mx, y: my } = latLonToWebMercator(lat, lon);
     const x = width / 2 + (mx - fit.centerX) * fit.scale;
@@ -107,7 +114,7 @@ function latLonToXY(
 
 function pathToPoints(
     seg: { lat: number; lon: number }[],
-    fit: { scale: number; centerX: number; centerY: number }
+    fit: { scale: number; centerX: number; centerY: number },
 ): string {
     return seg
         .map((p) => latLonToXY(p.lat, p.lon, fit, WIDTH, HEIGHT))
@@ -149,7 +156,8 @@ function splitIntoLegsForRender(segment: { lat: number; lon: number }[]): { lat:
     }
 
     const circMean = (arr: number[]): number => {
-        let s = 0, c = 0;
+        let s = 0,
+            c = 0;
         for (const d of arr) {
             const r = (d * Math.PI) / 180;
             s += Math.sin(r);
@@ -185,7 +193,9 @@ function main(): void {
     const strideArg = process.argv[4];
     const windowMinArg = process.argv[5];
     if (!filePath) {
-        console.error('Usage: npx ts-node scripts/render-trace-to-svg.ts <trace.json> [output.svg] [stride] [windowMin]');
+        console.error(
+            'Usage: npx ts-node scripts/render-trace-to-svg.ts <trace.json> [output.svg] [stride] [windowMin]',
+        );
         process.exit(1);
     }
     const resolved = path.resolve(process.cwd(), filePath);
@@ -216,10 +226,7 @@ function main(): void {
         if (startIdx >= 0 && endIdx >= 0) {
             const extendBack = Math.min(250, startIdx);
             const extendForward = Math.min(250, coords.length - 1 - endIdx);
-            zigzagSegment = coords.slice(
-                startIdx - extendBack,
-                endIdx + extendForward + 1
-            );
+            zigzagSegment = coords.slice(startIdx - extendBack, endIdx + extendForward + 1);
         }
     }
     // For rendering, prefer the best detected window itself. `getZigzagSubSegment` relies on the
@@ -242,7 +249,8 @@ function main(): void {
             return d >= MIN_RENDER_LEG_M;
         });
 
-    const drawBounds = zigzagSegment && zigzagSegment.length > 0 ? mercatorBounds(zigzagSegment) : mercatorBounds(coords);
+    const drawBounds =
+        zigzagSegment && zigzagSegment.length > 0 ? mercatorBounds(zigzagSegment) : mercatorBounds(coords);
     const fit = fitMercatorToViewport(drawBounds, WIDTH, HEIGHT);
     const pt = (lat: number, lon: number) => latLonToXY(lat, lon, fit, WIDTH, HEIGHT);
 

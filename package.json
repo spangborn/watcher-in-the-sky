@@ -1,33 +1,47 @@
 {
-  "dependencies": {
-    "@atproto/api": "^0.19.3",
-    "adm-zip": "^0.5.16",
-    "axios": "^1.13.6",
-    "axios-cache-interceptor": "^1.12.0",
-    "chalk": "^5.6.2",
-    "cron": "^4.4.0",
-    "dotenv": "^17.3.1",
-    "express": "^5.2.1",
-    "puppeteer": "^24.39.1",
-    "sqlite3": "^6.0.1"
-  },
-  "devDependencies": {
-    "@types/express": "^5.0.0",
-    "@vitest/coverage-v8": "^4.1.0",
-    "nodemon": "^3.1.14",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
-  },
-  "scripts": {
-    "start": "NODE_PATH=./build node build/index.js",
-    "prod": "node build/index.js",
-    "build": "tsc -p .",
-    "dev": "BLUESKY_DEBUG=true nodemon src/index.ts",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "install:browser": "npx puppeteer browsers install chrome",
-    "create-aircraft-db": "ts-node scripts/create-aircraft-db.ts",
-    "check-pelias-airport": "ts-node scripts/check-pelias-airport.ts"
-  }
+    "dependencies": {
+        "@atproto/api": "^0.19.3",
+        "adm-zip": "^0.5.16",
+        "axios": "^1.13.6",
+        "axios-cache-interceptor": "^1.12.0",
+        "chalk": "^5.6.2",
+        "cron": "^4.4.0",
+        "dotenv": "^17.3.1",
+        "express": "^5.2.1",
+        "puppeteer": "^24.39.1",
+        "sqlite3": "^6.0.1"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/express": "^5.0.0",
+        "@vitest/coverage-v8": "^4.1.0",
+        "eslint": "^10.0.3",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-prettier": "^5.5.5",
+        "globals": "^17.4.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^16.4.0",
+        "nodemon": "^3.1.14",
+        "prettier": "^3.8.1",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.57.1",
+        "vitest": "^4.0.18"
+    },
+    "scripts": {
+        "start": "NODE_PATH=./build node build/index.js",
+        "prod": "node build/index.js",
+        "build": "tsc -p .",
+        "dev": "BLUESKY_DEBUG=true nodemon src/index.ts",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "lint": "eslint \"src/**/*.ts\" \"scripts/**/*.ts\"",
+        "lint:fix": "eslint \"src/**/*.ts\" \"scripts/**/*.ts\" --fix",
+        "format": "prettier \"src/**/*.ts\" \"scripts/**/*.ts\" \"*.{js,cjs,json,md,yml,yaml}\" --check",
+        "format:write": "prettier \"src/**/*.ts\" \"scripts/**/*.ts\" \"*.{js,cjs,json,md,yml,yaml}\" --write",
+        "install:browser": "npx puppeteer browsers install chrome",
+        "create-aircraft-db": "ts-node scripts/create-aircraft-db.ts",
+        "check-pelias-airport": "ts-node scripts/check-pelias-airport.ts",
+        "prepare": "husky"
+    }
 }

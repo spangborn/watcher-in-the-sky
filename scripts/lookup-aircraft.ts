@@ -15,7 +15,9 @@ dotenv.config();
 
 const DATA_DIR = (process.env.DATA_DIR || './data').replace(/\/$/, '');
 const AIRCRAFT_INFO_DB =
-    process.env.AIRCRAFT_INFO_DB !== undefined ? process.env.AIRCRAFT_INFO_DB : path.join(DATA_DIR, 'aircraft_info.db');
+    process.env.AIRCRAFT_INFO_DB !== undefined
+        ? process.env.AIRCRAFT_INFO_DB
+        : path.join(DATA_DIR, 'aircraft_info.db');
 
 function getIcaoFromArg(arg: string): string | null {
     const trimmed = arg.trim();
@@ -59,7 +61,10 @@ function main(): void {
     db.get(
         'SELECT icao, registration, type FROM aircraft WHERE icao = ?',
         [icao],
-        (err: Error | null, row: { icao: string; registration: string | null; type: string | null } | undefined) => {
+        (
+            err: Error | null,
+            row: { icao: string; registration: string | null; type: string | null } | undefined,
+        ) => {
             db.close();
             if (err) {
                 console.error(err.message);
@@ -69,8 +74,10 @@ function main(): void {
                 console.log(`No row for ICAO ${icao} in aircraft_info.db`);
                 process.exit(0);
             }
-            console.log(JSON.stringify({ icao: row.icao, registration: row.registration, type: row.type }, null, 2));
-        }
+            console.log(
+                JSON.stringify({ icao: row.icao, registration: row.registration, type: row.type }, null, 2),
+            );
+        },
     );
 }
 

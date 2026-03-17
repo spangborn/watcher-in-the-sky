@@ -13,7 +13,6 @@ import * as path from 'path';
 import { TIME_WINDOW } from '../src/constants';
 import {
     findZigzagPeriod,
-    isZigzagPattern,
     zigzagFailureReason,
     countZigzagReversals,
     getZigzagSubSegment,
@@ -34,7 +33,7 @@ const DEFAULT_INTERVAL_SEC = 10;
 
 function loadTrace(
     filePath: string,
-    intervalSec: number = DEFAULT_INTERVAL_SEC
+    intervalSec: number = DEFAULT_INTERVAL_SEC,
 ): { lat: number; lon: number; timestamp: number }[] {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const data = JSON.parse(raw) as TraceFile;
@@ -78,13 +77,24 @@ function main(): void {
     const minRevArg = process.argv[6];
     const stride = strideArg != null ? Math.max(1, parseInt(strideArg, 10)) : 1;
     const windowMin = windowMinArg != null ? parseInt(windowMinArg, 10) : null;
-    const minReversals = minRevArg != null && !Number.isNaN(parseInt(minRevArg, 10)) ? parseInt(minRevArg, 10) : undefined;
+    const minReversals =
+        minRevArg != null && !Number.isNaN(parseInt(minRevArg, 10)) ? parseInt(minRevArg, 10) : undefined;
     const windowMs = windowMin != null && !Number.isNaN(windowMin) ? windowMin * 60 * 1000 : TIME_WINDOW;
     // Dynamic window; additional false-positive protection is handled inside findZigzagPeriod.
     const minWindowMs = Math.floor(windowMs / 4);
     if (intervalSec > 0 || stride > 1 || windowMin != null) {
         const raw = JSON.parse(fs.readFileSync(resolved, 'utf-8')) as TraceFile;
-        console.log('Raw trace points:', raw.trace?.length ?? 0, '| Interval:', intervalSec, 's', '| Stride:', stride, '| Window:', windowMin != null ? windowMin + ' min' : TIME_WINDOW / 60000 + ' min');
+        console.log(
+            'Raw trace points:',
+            raw.trace?.length ?? 0,
+            '| Interval:',
+            intervalSec,
+            's',
+            '| Stride:',
+            stride,
+            '| Window:',
+            windowMin != null ? windowMin + ' min' : TIME_WINDOW / 60000 + ' min',
+        );
     }
 
     const coords = loadTrace(resolved, intervalSec);
@@ -120,7 +130,12 @@ function main(): void {
                 }
             }
         }
-        console.log('No window with >= ' + minRev + ' reversals. Max reversals in any', windowMs / 60000, 'min window:', maxReversals);
+        console.log(
+            'No window with >= ' + minRev + ' reversals. Max reversals in any',
+            windowMs / 60000,
+            'min window:',
+            maxReversals,
+        );
         if (bestCandidate) {
             const reason = zigzagFailureReason(bestCandidate.window, minRev, stride);
             if (reason !== null) {
@@ -129,11 +144,16 @@ function main(): void {
                 const iExt = Math.max(0, bestCandidate.i - LEG_CHECK_EXTEND_POINTS);
                 const jExt = Math.min(coords.length - 1, bestCandidate.j + LEG_CHECK_EXTEND_POINTS);
                 const extended = coords.slice(iExt, jExt + 1);
-                const extendedStrided = stride > 1 ? extended.filter((_, idx) => idx % stride === 0) : extended;
+                const extendedStrided =
+                    stride > 1 ? extended.filter((_, idx) => idx % stride === 0) : extended;
                 if (!legsHaveConsistentLength(extendedStrided)) {
-                    console.log('Why (best candidate window): leg lengths too inconsistent on extended window (transit + short wiggles)');
+                    console.log(
+                        'Why (best candidate window): leg lengths too inconsistent on extended window (transit + short wiggles)',
+                    );
                 } else {
-                    console.log('Why (best candidate window): passed all checks on candidate but no window was chosen (tie or scoring).');
+                    console.log(
+                        'Why (best candidate window): passed all checks on candidate but no window was chosen (tie or scoring).',
+                    );
                 }
             }
         }
@@ -153,7 +173,9 @@ function main(): void {
         const centroid = calculateCentroid(sub);
         console.log('Centroid (lat, lon):', centroid.lat.toFixed(5), centroid.lon.toFixed(5));
         const startIdx = coords.findIndex((c) => c.timestamp === period.segment[0].timestamp);
-        const endIdx = coords.findIndex((c) => c.timestamp === period.segment[period.segment.length - 1].timestamp);
+        const endIdx = coords.findIndex(
+            (c) => c.timestamp === period.segment[period.segment.length - 1].timestamp,
+        );
         if (startIdx >= 0 && endIdx >= 0) {
             const extendBack = Math.min(250, startIdx);
             const extendForward = Math.min(250, coords.length - 1 - endIdx);
@@ -175,7 +197,9 @@ function main(): void {
             });
             const lastLegM = legDistances[legDistances.length - 1];
             if (lastLegM !== undefined) {
-                console.log(`  Last leg (${legDistances.length}) hits 2km threshold: ${lastLegM >= MIN_LEG_M}`);
+                console.log(
+                    `  Last leg (${legDistances.length}) hits 2km threshold: ${lastLegM >= MIN_LEG_M}`,
+                );
             }
         }
     }

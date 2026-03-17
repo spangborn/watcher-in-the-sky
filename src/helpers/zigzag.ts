@@ -86,7 +86,7 @@ function degToRad(d: number): number {
  */
 function toLocalXYm(
     p: { lat: number; lon: number },
-    origin: { lat: number; lon: number }
+    origin: { lat: number; lon: number },
 ): { x: number; y: number } {
     const lat0 = degToRad(origin.lat);
     const x = degToRad(p.lon - origin.lon) * Math.cos(lat0) * EARTH_RADIUS_M;
@@ -167,9 +167,7 @@ function progressesPerpendicularToLegs(segment: { lat: number; lon: number }[]):
     }
 
     // Spacing consistency: adjacent perpendicular steps should be reasonably uniform.
-    const spacings = deltas
-        .map((d) => Math.abs(d))
-        .filter((d) => d >= MIN_PERP_SPACING_M);
+    const spacings = deltas.map((d) => Math.abs(d)).filter((d) => d >= MIN_PERP_SPACING_M);
     if (spacings.length >= 2) {
         const minS = Math.min(...spacings);
         const maxS = Math.max(...spacings);
@@ -266,7 +264,12 @@ interface ReversalIndices {
  * Uses cumulative bearing change over TURN_WINDOW segments so gradual survey turns are detected.
  */
 function findReversalIndices(segment: { lat: number; lon: number }[]): ReversalIndices {
-    const result: ReversalIndices = { count: 0, firstReversalIdx: null, lastReversalIdx: null, reversalIndices: [] };
+    const result: ReversalIndices = {
+        count: 0,
+        firstReversalIdx: null,
+        lastReversalIdx: null,
+        reversalIndices: [],
+    };
     if (segment.length < 3) return result;
 
     const bearings: number[] = [];
@@ -295,7 +298,7 @@ function findReversalIndices(segment: { lat: number; lon: number }[]): ReversalI
         const legLongEnough = legDistM >= MIN_REVERSAL_LEG_DISTANCE_M;
 
         const sign = Math.sign(delta);
-        const isFirstOrAlternating = (prevTurnSign === null || (sign !== 0 && sign !== prevTurnSign));
+        const isFirstOrAlternating = prevTurnSign === null || (sign !== 0 && sign !== prevTurnSign);
         const oppositeDirection = Math.abs(delta) >= MIN_OPPOSITE_DEG;
 
         if (isFirstOrAlternating && legLongEnough && oppositeDirection) {
@@ -363,19 +366,6 @@ function legDistancesByDirection(segment: { lat: number; lon: number }[]): {
         else distanceEvenM += d;
     }
     return { distanceOddM, distanceEvenM };
-}
-
-/** Per-leg path distances in meters (between reversals). */
-function getLegDistancesM(segment: { lat: number; lon: number }[]): number[] {
-    const { reversalIndices } = findReversalIndices(segment);
-    if (reversalIndices.length === 0) return [];
-    const starts = [0, ...reversalIndices.map((r) => r + 1)];
-    const ends = [...reversalIndices, segment.length - 1];
-    const out: number[] = [];
-    for (let i = 0; i < starts.length && i < ends.length; i++) {
-        out.push(pathDistanceM(segment, starts[i], ends[i]));
-    }
-    return out;
 }
 
 /** True if leg lengths are reasonably consistent (imaging has similar-length passes, not one long leg + short wiggles). */
@@ -575,7 +565,7 @@ export interface ZigzagPeriod {
 export function zigzagPeriodFailureReason(
     period: ZigzagPeriod,
     minReversals: number = MIN_REVERSALS,
-    stride: number = 1
+    stride: number = 1,
 ): string | null {
     const seg = stridedSegment(period.segment, stride);
     if (seg.length < 3) return 'too few points';
@@ -590,13 +580,15 @@ export function zigzagPeriodFailureReason(
         const lawn = lawnMowerPatternFailureReason(validateSeg);
         if (lawn) return `not a lawn-mower pattern (${lawn})`;
     }
-    if (!legsHaveConsistentLength(validateSeg)) return 'leg lengths too inconsistent (not uniform imaging passes)';
-    if (!progressesPerpendicularToLegs(validateSeg)) return 'legs do not progress perpendicular to their direction (no steady sweep)';
+    if (!legsHaveConsistentLength(validateSeg))
+        return 'leg lengths too inconsistent (not uniform imaging passes)';
+    if (!progressesPerpendicularToLegs(validateSeg))
+        return 'legs do not progress perpendicular to their direction (no steady sweep)';
     return null;
 }
 
 /** Downsample to every stride-th point for bearing computation (makes gradual turns look sharp). */
-function stridedSegment<T extends { lat: number; lon: number }>(segment: T[], stride: number): T[] {
+function stridedSegment<T extends { lat: number; lon: number }>(segment: T[], _stride: number): T[] {
     // Stride is temporarily disabled: we already time-downsample traces (and bot data is ~10s),
     // and additional striding can erase zig-zag structure and break parallelism checks.
     // Keep the parameter so we can re-enable later without churn.
@@ -625,7 +617,7 @@ export function findZigzagPeriod(
     maxWindowMs: number,
     minReversals: number = MIN_REVERSALS,
     stride: number = 1,
-    minWindowMs: number = Math.floor(maxWindowMs / 4)
+    minWindowMs: number = Math.floor(maxWindowMs / 4),
 ): ZigzagPeriod | null {
     if (coords.length < 3) return null;
 
@@ -677,10 +669,8 @@ export function findZigzagPeriod(
             const isBetter =
                 !best ||
                 endTs > best.endTs ||
-                (endTs === best.endTs && (
-                    score > best.score ||
-                    (score === best.score && reversals > best.reversals)
-                ));
+                (endTs === best.endTs &&
+                    (score > best.score || (score === best.score && reversals > best.reversals)));
             if (isBetter) {
                 best = { segment: window, segmentForValidation: validationWindow, reversals, score, endTs };
             }
@@ -699,7 +689,7 @@ export function findZigzagPeriod(
 export function zigzagFailureReason(
     segment: { lat: number; lon: number }[],
     minReversals: number = MIN_REVERSALS,
-    stride: number = 1
+    stride: number = 1,
 ): string | null {
     const seg = stridedSegment(segment, stride);
     if (seg.length < 3) return 'too few points';
@@ -714,7 +704,8 @@ export function zigzagFailureReason(
         if (lawn) return `not a lawn-mower pattern (${lawn})`;
     }
     if (!legsHaveConsistentLength(seg)) return 'leg lengths too inconsistent (not uniform imaging passes)';
-    if (!progressesPerpendicularToLegs(seg)) return 'legs do not progress perpendicular to their direction (no steady sweep)';
+    if (!progressesPerpendicularToLegs(seg))
+        return 'legs do not progress perpendicular to their direction (no steady sweep)';
     return null;
 }
 
@@ -722,7 +713,7 @@ export function zigzagFailureReason(
 export function isZigzagPattern(
     segment: { lat: number; lon: number }[],
     minReversals: number = MIN_REVERSALS,
-    stride: number = 1
+    stride: number = 1,
 ): boolean {
     return zigzagFailureReason(segment, minReversals, stride) === null;
 }
@@ -734,7 +725,7 @@ export function isZigzagPattern(
 export function trimLegToStraight<T extends { lat: number; lon: number }>(
     leg: T[],
     maxDeviationDeg: number = TRIM_LEG_BEARING_DEG,
-    expectedBearingDeg?: number
+    expectedBearingDeg?: number,
 ): T[] {
     if (leg.length < 3) return leg;
     const bearings: number[] = [];
@@ -779,7 +770,7 @@ function legMeanBearing(leg: { lat: number; lon: number }[]): number {
  */
 export function trimLegsToStraightWithGroupDirection<T extends { lat: number; lon: number }>(
     legs: T[][],
-    maxDeviationDeg: number = TRIM_LEG_BEARING_DEG
+    maxDeviationDeg: number = TRIM_LEG_BEARING_DEG,
 ): T[][] {
     if (legs.length === 0) return legs;
     const means = legs.map((leg) => (leg.length >= 2 ? legMeanBearing(leg) : 0));
@@ -799,7 +790,10 @@ export function trimLegsToStraightWithGroupDirection<T extends { lat: number; lo
  * When stride > 1, reversals are found on the strided segment (same as detection) and
  * mapped back to full segment so gradual turns are detected and we get 4+ legs for imaging.
  */
-export function getLegSegments<T extends { lat: number; lon: number }>(segment: T[], stride: number = 1): T[][] {
+export function getLegSegments<T extends { lat: number; lon: number }>(
+    segment: T[],
+    stride: number = 1,
+): T[][] {
     const s = effectiveStride(stride);
     const seg = stridedSegment(segment, s);
     const { reversalIndices } = findReversalIndices(seg);
@@ -821,7 +815,10 @@ export function getLegSegments<T extends { lat: number; lon: number }>(segment: 
  * Return only the portion of the segment between the first and last zig-zag reversal.
  * Use this for centroid so location/links reflect the actual imaging pattern, not approach/exit.
  */
-export function getZigzagSubSegment<T extends { lat: number; lon: number }>(segment: T[], stride: number = 1): T[] {
+export function getZigzagSubSegment<T extends { lat: number; lon: number }>(
+    segment: T[],
+    stride: number = 1,
+): T[] {
     const s = effectiveStride(stride);
     const seg = stridedSegment(segment, s);
     const { firstReversalIdx, lastReversalIdx } = findReversalIndices(seg);

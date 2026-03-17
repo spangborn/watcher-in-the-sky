@@ -13,37 +13,40 @@ describe('aircraftInfo getRecord', () => {
         tempDbPath = path.join(os.tmpdir(), `aircraft_info_test_${Date.now()}.db`);
         const db = new sqlite3.Database(tempDbPath);
         return new Promise<void>((resolve, reject) => {
-            db.run(`
+            db.run(
+                `
                 CREATE TABLE aircraft (
                     icao TEXT NOT NULL PRIMARY KEY,
                     registration TEXT,
                     type TEXT
                 )
-            `, (err) => {
-                if (err) return reject(err);
-                db.run(
-                    'INSERT INTO aircraft (icao, registration, type) VALUES (?, ?, ?)',
-                    ['ABC123', 'N352HP', 'B738'],
-                    (err) => {
-                        if (err) return reject(err);
-                        db.run(
-                            'INSERT INTO aircraft (icao, registration, type) VALUES (?, ?, ?)',
-                            ['AE4567', null, 'F-16'],
-                            (err) => {
-                                if (err) return reject(err);
-                                db.run(
-                                    'INSERT INTO aircraft (icao, registration, type) VALUES (?, ?, ?)',
-                                    ['000000', '', ''],
-                                    (err) => {
-                                        if (err) return reject(err);
-                                        db.close((closeErr) => (closeErr ? reject(closeErr) : resolve()));
-                                    }
-                                );
-                            }
-                        );
-                    }
-                );
-            });
+            `,
+                (err) => {
+                    if (err) return reject(err);
+                    db.run(
+                        'INSERT INTO aircraft (icao, registration, type) VALUES (?, ?, ?)',
+                        ['ABC123', 'N352HP', 'B738'],
+                        (err) => {
+                            if (err) return reject(err);
+                            db.run(
+                                'INSERT INTO aircraft (icao, registration, type) VALUES (?, ?, ?)',
+                                ['AE4567', null, 'F-16'],
+                                (err) => {
+                                    if (err) return reject(err);
+                                    db.run(
+                                        'INSERT INTO aircraft (icao, registration, type) VALUES (?, ?, ?)',
+                                        ['000000', '', ''],
+                                        (err) => {
+                                            if (err) return reject(err);
+                                            db.close((closeErr) => (closeErr ? reject(closeErr) : resolve()));
+                                        },
+                                    );
+                                },
+                            );
+                        },
+                    );
+                },
+            );
         });
     });
 

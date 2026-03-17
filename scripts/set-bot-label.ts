@@ -36,7 +36,9 @@ async function main() {
         };
     });
 
-    console.log('Profile updated: bot self-label set. Your account should now show the automated account badge.');
+    console.log(
+        'Profile updated: bot self-label set. Your account should now show the automated account badge.',
+    );
 }
 
 main().catch((err) => {

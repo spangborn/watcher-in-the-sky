@@ -22,7 +22,11 @@ const AIRPORTS: { name: string; lat: number; lon: number }[] = [
 const CATEGORIES = 'aeroway:aerodrome,transport:air:aerodrome';
 const RADIUS_KM = '5';
 
-async function checkNearby(base: string, lat: number, lon: number): Promise<{ count: number; firstLabel?: string }> {
+async function checkNearby(
+    base: string,
+    lat: number,
+    lon: number,
+): Promise<{ count: number; firstLabel?: string }> {
     const url = new URL('/v1/nearby', base);
     url.searchParams.set('point.lat', String(lat));
     url.searchParams.set('point.lon', String(lon));
@@ -45,7 +49,11 @@ async function main(): Promise<void> {
 
     const latArg = process.argv[2];
     const lonArg = process.argv[3];
-    const singlePoint = latArg != null && lonArg != null && !Number.isNaN(parseFloat(latArg)) && !Number.isNaN(parseFloat(lonArg));
+    const singlePoint =
+        latArg != null &&
+        lonArg != null &&
+        !Number.isNaN(parseFloat(latArg)) &&
+        !Number.isNaN(parseFloat(lonArg));
 
     if (singlePoint) {
         const lat = parseFloat(latArg!);
@@ -105,7 +113,9 @@ async function runSinglePoint(base: string, lat: number, lon: number): Promise<v
             console.log(`   [${i + 1}] ${name}`);
             console.log(`       categories/layer: ${catList || (props.layer ?? '—')}`);
         });
-        console.log(features.length === 0 ? '   → No aerodromes found.' : '   → Aerodrome(s) found; would filter.');
+        console.log(
+            features.length === 0 ? '   → No aerodromes found.' : '   → Aerodrome(s) found; would filter.',
+        );
     } catch (err: any) {
         console.error('   Error:', err.message || err);
     }

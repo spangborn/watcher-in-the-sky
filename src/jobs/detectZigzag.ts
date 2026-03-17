@@ -3,7 +3,13 @@
  */
 
 import { fetchAircraftData } from '../adsb/adsb';
-import { insertFlightData, getRecentCoordinates, clearAircraft, wasPostedRecently, recordPosted } from '../database/database';
+import {
+    insertFlightData,
+    getRecentCoordinates,
+    clearAircraft,
+    wasPostedRecently,
+    recordPosted,
+} from '../database/database';
 import { calculateCentroid, getBoundsZoomCenter } from '../helpers/coordinateUtils';
 import { findZigzagPeriod, zigzagPeriodFailureReason, getZigzagSubSegment } from '../helpers/zigzag';
 import { isNearbyAirport, reverse } from '../pelias/pelias';
@@ -19,7 +25,7 @@ import * as log from '../log';
 
 export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?: any[]): Promise<void> {
     log.info('Starting zig-zag (imaging) pattern detection...');
-    const data = aircraftData ?? await fetchAircraftData();
+    const data = aircraftData ?? (await fetchAircraftData());
     const useSharedData = aircraftData != null; // data already inserted by circling job
     const now = Date.now();
     const cutoff = now - TIME_WINDOW;
@@ -37,10 +43,10 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
 
         const recentCoords = await getRecentCoordinates(hex, cutoff);
         const zigzagPeriod = findZigzagPeriod(
-            recentCoords.map(c => ({ lat: c.lat, lon: c.lon, timestamp: c.timestamp })),
+            recentCoords.map((c) => ({ lat: c.lat, lon: c.lon, timestamp: c.timestamp })),
             TIME_WINDOW,
             undefined, // minReversals: use default (3)
-            1 // stride (currently ignored)
+            1, // stride (currently ignored)
         );
 
         if (!zigzagPeriod) continue;
@@ -48,10 +54,14 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
         const regFromCoords = recentCoords[0]?.r?.trim();
         const displayLabel = regFromCoords || rFromApi || hex || '?';
         const linkPart = hex ? ` ${log.link(`${TAR1090_URL}?icao=${hex}`)}` : '';
-        const timestampDiff = zigzagPeriod.segment[zigzagPeriod.segment.length - 1].timestamp - zigzagPeriod.segment[0].timestamp;
+        const timestampDiff =
+            zigzagPeriod.segment[zigzagPeriod.segment.length - 1].timestamp -
+            zigzagPeriod.segment[0].timestamp;
         const minutes = Math.floor(timestampDiff / 60000);
         const seconds = ((timestampDiff % 60000) / 1000).toFixed(0);
-        log.dim(`Flight: ${displayLabel} Zig-zags: ${zigzagPeriod.reversals} Window Length: ${minutes} minutes and ${seconds} seconds${linkPart}`);
+        log.dim(
+            `Flight: ${displayLabel} Zig-zags: ${zigzagPeriod.reversals} Window Length: ${minutes} minutes and ${seconds} seconds${linkPart}`,
+        );
 
         const reason = zigzagPeriodFailureReason(zigzagPeriod);
         if (reason) {
@@ -93,16 +103,19 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
             segment.map((c) => ({ lat: c.lat, lon: c.lon })),
             1200,
             800,
-            1.15
+            1.15,
         );
         const screenshotUrl = `${TAR1090_URL}?icao=${hex}&showTrace=${dateStr}&zoom=${frame.zoom}&lat=${frame.lat.toFixed(4)}&lon=${frame.lon.toFixed(4)}&hideButtons&hideSidebar&screenshot&nowebgl`;
 
-        log.success(`Found imaging pattern aircraft ${hex} (${zigzagPeriod.reversals} reversals): ${log.link(link)}`);
+        log.success(
+            `Found imaging pattern aircraft ${hex} (${zigzagPeriod.reversals} reversals): ${log.link(link)}`,
+        );
         const screenshot_data = await captureScreenshot(hex, screenshotUrl);
 
-        const rFromHistory = recentCoords.length > 0
-            ? [...recentCoords].reverse().find((c) => c.r != null && c.r.trim() !== '')?.r ?? null
-            : null;
+        const rFromHistory =
+            recentCoords.length > 0
+                ? ([...recentCoords].reverse().find((c) => c.r != null && c.r.trim() !== '')?.r ?? null)
+                : null;
         let registration = rFromApi ?? rFromHistory ?? null;
         let operator: string | null = null;
         let aircraftType = ac.type_desc ?? ac.desc ?? ac.t ?? null;
@@ -137,7 +150,7 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
                 squawk: ac.squawk,
             },
             reverseGeoProps,
-            link
+            link,
         );
         const imageAlt = buildScreenshotAlt(reverseGeoProps, null, ac.flight);
         const photo = await getAircraftPhoto(hex, registration);
@@ -148,11 +161,15 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
                 alt: imageAlt ?? `Screenshot of the flight path of the flight ${ac.flight}`,
                 aspectRatio: { width: 1200, height: 800 },
             },
-            ...(photo ? [{
-                data: photo.bytes,
-                mimeType: photo.mimeType,
-                alt: `Photo of aircraft ${registration ?? hex}. Source: ${photo.link ? photo.link : 'Aircraft photo provider'}${photo.photographer ? ` (Photo: ${photo.photographer})` : ''}`.trim(),
-            }] : []),
+            ...(photo
+                ? [
+                      {
+                          data: photo.bytes,
+                          mimeType: photo.mimeType,
+                          alt: `Photo of aircraft ${registration ?? hex}. Source: ${photo.link ? photo.link : 'Aircraft photo provider'}${photo.photographer ? ` (Photo: ${photo.photographer})` : ''}`.trim(),
+                      },
+                  ]
+                : []),
         ];
         const success = await postToBluesky(ac, message, images);
 
@@ -168,8 +185,9 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
     }
 
     const msg = `Zig-zag detection completed. ${found} aircraft checked.`;
-    const nextPart = nextCheckInMs != null
-        ? ` Next check in ${nextCheckInMs / 1000}s at ${formatLocalTime(new Date(Date.now() + nextCheckInMs)).slice(11, 19)}.`
-        : '';
+    const nextPart =
+        nextCheckInMs != null
+            ? ` Next check in ${nextCheckInMs / 1000}s at ${formatLocalTime(new Date(Date.now() + nextCheckInMs)).slice(11, 19)}.`
+            : '';
     log.success(msg + nextPart);
 }

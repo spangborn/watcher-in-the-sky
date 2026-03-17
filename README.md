@@ -7,11 +7,13 @@ John's original code was written in Clojure, with a current rewrite in Rust. I d
 The bot runs two detection jobs: (1) **circling** — aircraft flying circular patterns; (2) **zig-zag (imaging)** — back-and-forth survey/imaging patterns. It uses the Airplanes.live API (or a network tar1090 aircraft.json) and posts to Bluesky with a screenshot of the flight path.
 
 Data is sourced from:
+
 - [Airplanes.live](https://airplanes.live/) for live aircraft positions
 - A local [Pelias](https://github.com/pelias/docker) instance for reverse geocoding and landmarks
 - Optional: [Mictronics aircraft database](https://www.mictronics.de/aircraft-database/) for registration and type lookups when the API doesn’t provide them (see below)
 
 ## What's in a name?
+
 The name "[Watcher in the Sky](https://www.youtube.com/watch?v=0mGr5bMItQY)" is inspired by the band Ghost.
 
 ## How it works
@@ -27,6 +29,7 @@ You can turn detection jobs on or off in `.env`: set `ENABLE_CIRCLING_DETECTION=
 Another WIP job looks for specific aircraft and will post about them when they're seen in the area.
 
 ## WIP
+
 This code is very much a work in progress and will be refined as I work on it.
 
 ## Mictronics aircraft database (optional)
@@ -51,9 +54,11 @@ Both compose files set `AIRCRAFT_INFO_DB=/home/node/app/aircraft_info.db`, so th
 - **`make up`** or **`make up-prod`** – Either will create the DB on first run; the volume keeps it for later runs.
 
 ## To-do:
+
 1. Pull photo of aircraft from airport-data (if available)
 2. Write nicer-reading post text
 3. Create configuration of watched aircraft list for specific tail numbers or icao
 
 ## Example
+
 This code is periodically running and posts to the BSky account [@skycirclesslc.bsky.social](https://bsky.app/profile/skycirclesslc.bsky.social). I can be found on BSky as [@sawyer.bike](https://bsky.app/profile/sawyer.bike).

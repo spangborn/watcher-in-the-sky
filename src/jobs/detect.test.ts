@@ -11,10 +11,12 @@ describe('calculateCurviness', () => {
     });
 
     it('returns 0 for two points (no curvature)', () => {
-        expect(calculateCurviness([
-            { lat: 34, lon: -118 },
-            { lat: 34.01, lon: -118 },
-        ])).toBe(0);
+        expect(
+            calculateCurviness([
+                { lat: 34, lon: -118 },
+                { lat: 34.01, lon: -118 },
+            ]),
+        ).toBe(0);
     });
 
     it('returns 0 for collinear points', () => {
@@ -53,7 +55,10 @@ describe('calculateCurviness', () => {
     });
 });
 
-function withAlt(coords: { lat: number; lon: number; timestamp: number; r: string }[], alt: number): { lat: number; lon: number; timestamp: number; r: string; alt_baro: number | null }[] {
+function withAlt(
+    coords: { lat: number; lon: number; timestamp: number; r: string }[],
+    alt: number,
+): { lat: number; lon: number; timestamp: number; r: string; alt_baro: number | null }[] {
     return coords.map((c) => ({ ...c, alt_baro: alt }));
 }
 
@@ -62,23 +67,31 @@ describe('getCirclingSegment', () => {
 
     it('returns null for fewer than 2 coords', () => {
         expect(getCirclingSegment([], timeWindow)).toBeNull();
-        expect(getCirclingSegment(withAlt([{ lat: 34, lon: -118, timestamp: 0, r: 'N1' }], 1000), timeWindow)).toBeNull();
+        expect(
+            getCirclingSegment(withAlt([{ lat: 34, lon: -118, timestamp: 0, r: 'N1' }], 1000), timeWindow),
+        ).toBeNull();
     });
 
     it('returns null when all points are on ground', () => {
-        const coords = withAlt([
-            { lat: 34, lon: -118, timestamp: 0, r: 'N1' },
-            { lat: 34.01, lon: -118, timestamp: 30000, r: 'N1' },
-        ], 0);
+        const coords = withAlt(
+            [
+                { lat: 34, lon: -118, timestamp: 0, r: 'N1' },
+                { lat: 34.01, lon: -118, timestamp: 30000, r: 'N1' },
+            ],
+            0,
+        );
         expect(getCirclingSegment(coords, timeWindow)).toBeNull();
     });
 
     it('returns null for straight line (no window meets circling threshold)', () => {
-        const coords = withAlt([
-            { lat: 34, lon: -118, timestamp: 0, r: 'N1' },
-            { lat: 34.01, lon: -118, timestamp: 30000, r: 'N1' },
-            { lat: 34.02, lon: -118, timestamp: 60000, r: 'N1' },
-        ], 1000);
+        const coords = withAlt(
+            [
+                { lat: 34, lon: -118, timestamp: 0, r: 'N1' },
+                { lat: 34.01, lon: -118, timestamp: 30000, r: 'N1' },
+                { lat: 34.02, lon: -118, timestamp: 60000, r: 'N1' },
+            ],
+            1000,
+        );
         const result = getCirclingSegment(coords, timeWindow);
         expect(result).toBeNull();
     });

@@ -79,7 +79,9 @@ async function fetchWithRetry<T>(fn: () => Promise<T>, maxRetries = DEFAULT_MAX_
             }
             const retryAfter = getRetryAfterMs(error);
             const delayMs = retryAfter ?? Math.min(BASE_DELAY_MS * Math.pow(2, attempt), 60000);
-            log.warn(`TAR1090 rate limited (429), retrying in ${delayMs / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
+            log.warn(
+                `TAR1090 rate limited (429), retrying in ${delayMs / 1000}s (attempt ${attempt + 1}/${maxRetries})`,
+            );
             await sleep(delayMs);
         }
     }

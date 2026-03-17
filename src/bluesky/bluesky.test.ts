@@ -10,4 +10,3 @@ describe('postToBluesky', () => {
         dryRunSpy.mockRestore();
     });
 });
-

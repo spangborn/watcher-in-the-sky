@@ -12,12 +12,22 @@ async function main(): Promise<void> {
     const buf = Buffer.from(await res.arrayBuffer());
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const AdmZip = require('adm-zip') as new (b: Buffer) => {
-        getEntries: () => Array<{ entryName: string; isDirectory: boolean; header: { size: number }; getData: () => Buffer }>;
+        getEntries: () => Array<{
+            entryName: string;
+            isDirectory: boolean;
+            header: { size: number };
+            getData: () => Buffer;
+        }>;
     };
     const zip = new AdmZip(buf);
     const entries = zip.getEntries();
-    const jsonFiles = entries.filter((e: { isDirectory: boolean; entryName: string }) => !e.isDirectory && e.entryName.toLowerCase().endsWith('.json'));
-    const jsonEntry = jsonFiles.sort((a: { header: { size: number } }, b: { header: { size: number } }) => b.header.size - a.header.size)[0];
+    const jsonFiles = entries.filter(
+        (e: { isDirectory: boolean; entryName: string }) =>
+            !e.isDirectory && e.entryName.toLowerCase().endsWith('.json'),
+    );
+    const jsonEntry = jsonFiles.sort(
+        (a: { header: { size: number } }, b: { header: { size: number } }) => b.header.size - a.header.size,
+    )[0];
     console.log('Using', jsonEntry.entryName);
     const data = JSON.parse(jsonEntry.getData().toString('utf-8')) as Record<string, unknown>;
     const icaos = Object.keys(data);
@@ -33,7 +43,9 @@ async function main(): Promise<void> {
     console.log('\nFirst 3 full entries:');
     for (let i = 0; i < Math.min(3, icaos.length); i++) {
         const entry = data[icaos[i]];
-        console.log(JSON.stringify({ icao: icaos[i], ...(typeof entry === 'object' && entry ? entry : {}) }, null, 2));
+        console.log(
+            JSON.stringify({ icao: icaos[i], ...(typeof entry === 'object' && entry ? entry : {}) }, null, 2),
+        );
     }
 }
 

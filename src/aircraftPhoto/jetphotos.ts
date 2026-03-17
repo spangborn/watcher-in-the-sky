@@ -74,4 +74,3 @@ export async function getJetPhotosPhoto(registration: string | null): Promise<Ai
         return null;
     }
 }
-

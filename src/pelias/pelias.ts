@@ -9,11 +9,13 @@ export interface ClosestLandmark {
 }
 
 export async function reverse(lat: number, lon: number, options: Record<string, any> = {}): Promise<any> {
-    const requestUrl = new URL("/v1/reverse", PELIAS_INSTANCE);
+    const requestUrl = new URL('/v1/reverse', PELIAS_INSTANCE);
 
-    Object.entries({ ...options, 'point.lat': lat, 'point.lon': lon, "layers": "coarse" }).forEach(([key, value]) => {
-        requestUrl.searchParams.append(key, String(value));
-    });
+    Object.entries({ ...options, 'point.lat': lat, 'point.lon': lon, layers: 'coarse' }).forEach(
+        ([key, value]) => {
+            requestUrl.searchParams.append(key, String(value));
+        },
+    );
     log.info(`Querying ${requestUrl}`);
     try {
         const response = await axios.get(requestUrl.toString());
@@ -32,18 +34,20 @@ const AIRPORT_NEARBY_RADIUS_KM = 5;
  * Uses Pelias /v1/nearby with categories=aeroway:aerodrome,transport:air:aerodrome (OR) to support both taxonomies.
  * Requires Pelias to be built with venue/POI data that includes airports (e.g. whosonfirst).
  */
-export async function isNearbyAirport(lat: number, lon: number, options: Record<string, unknown> = {}): Promise<boolean> {
-    const requestUrl = new URL("/v1/nearby", PELIAS_INSTANCE);
+export async function isNearbyAirport(
+    lat: number,
+    lon: number,
+    options: Record<string, unknown> = {},
+): Promise<boolean> {
+    const requestUrl = new URL('/v1/nearby', PELIAS_INSTANCE);
 
     const params: Record<string, string> = {
         'point.lat': String(lat),
         'point.lon': String(lon),
-        'categories': 'aeroway:aerodrome,transport:air:aerodrome',
-        'size': '10',
+        categories: 'aeroway:aerodrome,transport:air:aerodrome',
+        size: '10',
         'boundary.circle.radius': String(AIRPORT_NEARBY_RADIUS_KM),
-        ...Object.fromEntries(
-            Object.entries(options).map(([k, v]) => [k, String(v)])
-        ),
+        ...Object.fromEntries(Object.entries(options).map(([k, v]) => [k, String(v)])),
     };
     Object.entries(params).forEach(([key, value]) => {
         requestUrl.searchParams.set(key, value);

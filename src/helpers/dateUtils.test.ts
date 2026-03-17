@@ -8,4 +8,3 @@ describe('formatLocalTime', () => {
         expect(s).toBe('2024-01-02T03:04:05.006');
     });
 });
-

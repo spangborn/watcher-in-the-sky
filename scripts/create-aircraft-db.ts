@@ -19,7 +19,12 @@ import * as path from 'path';
 import sqlite3 from 'sqlite3';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AdmZip = require('adm-zip') as new (buf?: Buffer) => {
-    getEntries: () => Array<{ entryName: string; isDirectory: boolean; header: { size: number }; getData: () => Buffer }>;
+    getEntries: () => Array<{
+        entryName: string;
+        isDirectory: boolean;
+        header: { size: number };
+        getData: () => Buffer;
+    }>;
 };
 
 const MICTRONICS_ZIP_URL = 'https://www.mictronics.de/aircraft-database/indexedDB_old.php';
@@ -30,8 +35,10 @@ const outPath =
     argv.length === 0
         ? path.join(process.cwd(), 'aircraft_info.db')
         : argv.length === 1
-            ? (jsonPath ? path.join(process.cwd(), 'aircraft_info.db') : argv[0])
-            : argv[1];
+          ? jsonPath
+              ? path.join(process.cwd(), 'aircraft_info.db')
+              : argv[0]
+          : argv[1];
 
 /** JSON key → SQL column name (so we use readable names for known short keys). */
 const KEY_TO_COLUMN: Record<string, string> = {
@@ -53,7 +60,10 @@ function buildDb(data: Record<string, Record<string, unknown>>, outputPath: stri
     for (const entry of Object.values(data)) {
         if (entry && typeof entry === 'object') {
             for (const k of Object.keys(entry)) {
-                if (typeof (entry as Record<string, unknown>)[k] === 'string' || typeof (entry as Record<string, unknown>)[k] === 'number') {
+                if (
+                    typeof (entry as Record<string, unknown>)[k] === 'string' ||
+                    typeof (entry as Record<string, unknown>)[k] === 'number'
+                ) {
                     allKeys.add(k);
                 }
             }
@@ -70,7 +80,7 @@ function buildDb(data: Record<string, Record<string, unknown>>, outputPath: stri
         const row: (string | null)[] = [key];
         for (const jk of jsonKeys) {
             const v = (entry as Record<string, unknown>)[jk];
-            const s = v == null ? null : typeof v === 'string' ? (v.trim() || null) : String(v).trim() || null;
+            const s = v == null ? null : typeof v === 'string' ? v.trim() || null : String(v).trim() || null;
             row.push(s);
         }
         rows.push(row);
@@ -87,7 +97,9 @@ function buildDb(data: Record<string, Record<string, unknown>>, outputPath: stri
         db.run('CREATE UNIQUE INDEX idx_aircraft_icao ON aircraft (icao)');
 
         const placeholders = columns.map(() => '?').join(', ');
-        const insert = db.prepare(`INSERT INTO aircraft (${safeColumns.join(', ')}) VALUES (${placeholders})`);
+        const insert = db.prepare(
+            `INSERT INTO aircraft (${safeColumns.join(', ')}) VALUES (${placeholders})`,
+        );
         let done = 0;
         for (let i = 0; i < rows.length; i++) {
             insert.run(rows[i], (err: Error | null) => {
@@ -98,7 +110,9 @@ function buildDb(data: Record<string, Record<string, unknown>>, outputPath: stri
                     insert.finalize();
                     db.close((closeErr) => {
                         if (closeErr) console.error(closeErr);
-                        console.log(`Created ${outputPath} with ${rows.length} aircraft. Columns: ${columns.join(', ')}`);
+                        console.log(
+                            `Created ${outputPath} with ${rows.length} aircraft. Columns: ${columns.join(', ')}`,
+                        );
                     });
                 }
             });
@@ -124,12 +138,10 @@ async function downloadAndExtract(): Promise<Record<string, Record<string, unkno
         getData(): Buffer;
     }
     const jsonFiles = entries.filter(
-        (e: ZipEntry) => !e.isDirectory && e.entryName.toLowerCase().endsWith('.json')
+        (e: ZipEntry) => !e.isDirectory && e.entryName.toLowerCase().endsWith('.json'),
     );
     if (jsonFiles.length === 0) throw new Error('No JSON file found in zip');
-    const jsonEntry = jsonFiles.sort(
-        (a: ZipEntry, b: ZipEntry) => b.header.size - a.header.size
-    )[0];
+    const jsonEntry = jsonFiles.sort((a: ZipEntry, b: ZipEntry) => b.header.size - a.header.size)[0];
     console.log(`Using ${jsonEntry.entryName}`);
     const raw = jsonEntry.getData().toString('utf-8');
     return JSON.parse(raw) as Record<string, Record<string, unknown>>;
@@ -145,7 +157,9 @@ async function main(): Promise<void> {
     } else if (argv.length <= 1) {
         data = await downloadAndExtract();
     } else {
-        console.error('Usage: npx ts-node scripts/create-aircraft-db.ts [path-to-mictronics.json] [output.db]');
+        console.error(
+            'Usage: npx ts-node scripts/create-aircraft-db.ts [path-to-mictronics.json] [output.db]',
+        );
         process.exit(1);
     }
 

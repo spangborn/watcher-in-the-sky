@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { countZigzagReversals, findZigzagPeriod, isZigzagPattern, getZigzagSubSegment, zigzagFailureReason } from './zigzag';
+import { countZigzagReversals, findZigzagPeriod, isZigzagPattern, getZigzagSubSegment } from './zigzag';
 
 describe('countZigzagReversals', () => {
     it('returns 0 for too few points', () => {
         expect(countZigzagReversals([])).toBe(0);
         expect(countZigzagReversals([{ lat: 40, lon: -111 }])).toBe(0);
-        expect(countZigzagReversals([{ lat: 40, lon: -111 }, { lat: 40.01, lon: -111 }])).toBe(0);
+        expect(
+            countZigzagReversals([
+                { lat: 40, lon: -111 },
+                { lat: 40.01, lon: -111 },
+            ]),
+        ).toBe(0);
     });
 
     it('returns 0 for straight line', () => {
@@ -33,10 +38,15 @@ describe('countZigzagReversals', () => {
 describe('findZigzagPeriod', () => {
     it('returns null for too few points', () => {
         expect(findZigzagPeriod([], 300000)).toBeNull();
-        expect(findZigzagPeriod([
-            { lat: 40, lon: -111, timestamp: 0 },
-            { lat: 40.01, lon: -111, timestamp: 60000 },
-        ], 300000)).toBeNull();
+        expect(
+            findZigzagPeriod(
+                [
+                    { lat: 40, lon: -111, timestamp: 0 },
+                    { lat: 40.01, lon: -111, timestamp: 60000 },
+                ],
+                300000,
+            ),
+        ).toBeNull();
     });
 
     it('returns null when no segment has enough reversals', () => {
@@ -65,7 +75,7 @@ describe('isZigzagPattern', () => {
         const baseLat = 40;
         const baseLon = -111;
         const legs = 5; // 4 reversals
-        const legLen = 0.10; // ~11km (ensure median leg length passes threshold)
+        const legLen = 0.1; // ~11km (ensure median leg length passes threshold)
         const lonStep = 0.01; // ~0.85km at this lat
         for (let leg = 0; leg < legs; leg++) {
             const lon = baseLon + leg * lonStep;
@@ -99,7 +109,7 @@ describe('isZigzagPattern', () => {
         const baseLat = 40;
         const baseLon = -111;
         const legs = 5; // 4 reversals
-        const legLen = 0.10;
+        const legLen = 0.1;
         const lonOffsets = [0, 0.01, 0, 0.01, 0]; // back-and-forth instead of marching
         for (let leg = 0; leg < legs; leg++) {
             const lon = baseLon + lonOffsets[leg];
@@ -176,7 +186,7 @@ describe('getZigzagSubSegment', () => {
         expect(sub.length).toBeGreaterThan(0);
         expect(sub.length).toBeLessThanOrEqual(zigzag.length);
         // Sub-segment must be contiguous in original (same refs or same coords)
-        const startIdx = zigzag.findIndex(p => p.lat === sub[0].lat && p.lon === sub[0].lon);
+        const startIdx = zigzag.findIndex((p) => p.lat === sub[0].lat && p.lon === sub[0].lon);
         expect(startIdx).toBeGreaterThanOrEqual(0);
         for (let i = 0; i < sub.length; i++) {
             expect(sub[i].lat).toBe(zigzag[startIdx + i].lat);

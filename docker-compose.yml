@@ -1,23 +1,23 @@
 services:
-  watcher:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: base
-    volumes:
-      - ./src:/home/node/app/src
-      - ./nodemon.json:/home/node/app/nodemon.json
-      - aircraft_db:/home/node/app/data
-    container_name: watcher-in-the-sky
-    command: npm run dev
-    env_file:
-      - .env
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - TZ=America/Denver
-      - DATA_DIR=/home/node/app/data
+    watcher:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: base
+        volumes:
+            - ./src:/home/node/app/src
+            - ./nodemon.json:/home/node/app/nodemon.json
+            - aircraft_db:/home/node/app/data
+        container_name: watcher-in-the-sky
+        command: npm run dev
+        env_file:
+            - .env
+        restart: unless-stopped
+        ports:
+            - '3000:3000'
+        environment:
+            - TZ=America/Denver
+            - DATA_DIR=/home/node/app/data
 
 volumes:
-  aircraft_db:
+    aircraft_db:

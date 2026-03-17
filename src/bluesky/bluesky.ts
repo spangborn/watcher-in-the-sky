@@ -15,8 +15,7 @@ export type BlueskyImage = {
 export async function loginToBluesky(): Promise<void> {
     try {
         await agent.login({ identifier: BLUESKY_USERNAME, password: BLUESKY_PASSWORD });
-    }
-    catch (err) {
+    } catch (err) {
         log.err(`Error logging into Bluesky: ${err}`);
     }
 }
@@ -24,7 +23,7 @@ export async function loginToBluesky(): Promise<void> {
 export async function postToBluesky(
     aircraft: any,
     message: string,
-    images?: BlueskyImage[]
+    images?: BlueskyImage[],
 ): Promise<boolean> {
     const dryRun = BLUESKY_DRY_RUN || BLUESKY_DEBUG;
     if (dryRun) {
@@ -44,7 +43,6 @@ export async function postToBluesky(
     await rt.detectFacets(agent);
 
     try {
-
         const validImages = (images ?? []).filter((img) => img.data && img.data.length > 0).slice(0, 4);
         if (validImages.length > 0) {
             const uploaded = [];
@@ -59,30 +57,28 @@ export async function postToBluesky(
                 });
             }
             const postRecord: Partial<AppBskyFeedPost.Record> & Omit<AppBskyFeedPost.Record, 'createdAt'> = {
-                $type: "app.bsky.feed.post",
-                langs: ["en-US"],
+                $type: 'app.bsky.feed.post',
+                langs: ['en-US'],
                 text: rt.text,
                 facets: rt.facets,
                 embed: {
                     $type: 'app.bsky.embed.images',
-                    images: uploaded
-                }
+                    images: uploaded,
+                },
             };
             await agent.post(postRecord);
             return true;
         }
         const postRecord: Partial<AppBskyFeedPost.Record> & Omit<AppBskyFeedPost.Record, 'createdAt'> = {
-            $type: "app.bsky.feed.post",
-            langs: ["en-US"],
+            $type: 'app.bsky.feed.post',
+            langs: ['en-US'],
             text: rt.text,
             facets: rt.facets,
         };
         await agent.post(postRecord);
         return true;
-    }
-    catch (err) {
+    } catch (err) {
         log.err(`Error posting to Bsky: ${err}`);
         return false;
-
     }
 }

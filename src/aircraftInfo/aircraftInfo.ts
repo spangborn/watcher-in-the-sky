@@ -73,36 +73,55 @@ export function getRecord(icao: string): Promise<AircraftRecord | null> {
             return;
         }
         const key = icao.replace(/^~/, '').toUpperCase();
-        type RowWithOperator = { registration: string | null; type: string | null; description?: string | null; operator?: string | null };
+        type RowWithOperator = {
+            registration: string | null;
+            type: string | null;
+            description?: string | null;
+            operator?: string | null;
+        };
         database.get(
             'SELECT registration, type, description, operator FROM aircraft WHERE icao = ?',
             [key],
             (err: Error | null, row: RowWithOperator | undefined) => {
                 if (err) {
                     // Old DB may lack operator or description; fall back
-                    database.get('SELECT registration, type, description FROM aircraft WHERE icao = ?', [key], (_e: Error | null, r: RowWithOperator | undefined) => {
-                        if (_e || !r) {
-                            database.get('SELECT registration, type FROM aircraft WHERE icao = ?', [key], (__e: Error | null, r2: { registration: string | null; type: string | null } | undefined) => {
-                                if (__e || !r2) {
-                                    resolve(null);
-                                    return;
-                                }
-                                resolve({
-                                    registration: r2.registration?.trim() || null,
-                                    type: r2.type?.trim() || null,
-                                    description: null,
-                                    operator: null,
-                                });
+                    database.get(
+                        'SELECT registration, type, description FROM aircraft WHERE icao = ?',
+                        [key],
+                        (_e: Error | null, r: RowWithOperator | undefined) => {
+                            if (_e || !r) {
+                                database.get(
+                                    'SELECT registration, type FROM aircraft WHERE icao = ?',
+                                    [key],
+                                    (
+                                        __e: Error | null,
+                                        r2: { registration: string | null; type: string | null } | undefined,
+                                    ) => {
+                                        if (__e || !r2) {
+                                            resolve(null);
+                                            return;
+                                        }
+                                        resolve({
+                                            registration: r2.registration?.trim() || null,
+                                            type: r2.type?.trim() || null,
+                                            description: null,
+                                            operator: null,
+                                        });
+                                    },
+                                );
+                                return;
+                            }
+                            resolve({
+                                registration: r.registration?.trim() || null,
+                                type: r.type?.trim() || null,
+                                description:
+                                    r.description != null && r.description !== ''
+                                        ? String(r.description).trim() || null
+                                        : null,
+                                operator: null,
                             });
-                            return;
-                        }
-                        resolve({
-                            registration: r.registration?.trim() || null,
-                            type: r.type?.trim() || null,
-                            description: (r.description != null && r.description !== '') ? String(r.description).trim() || null : null,
-                            operator: null,
-                        });
-                    });
+                        },
+                    );
                     return;
                 }
                 if (!row) {
@@ -111,10 +130,14 @@ export function getRecord(icao: string): Promise<AircraftRecord | null> {
                 }
                 const reg = row.registration?.trim() || null;
                 const type = row.type?.trim() || null;
-                const description = (row.description != null && row.description !== '') ? String(row.description).trim() || null : null;
-                const operator = (row.operator != null && row.operator !== '') ? String(row.operator).trim() || null : null;
+                const description =
+                    row.description != null && row.description !== ''
+                        ? String(row.description).trim() || null
+                        : null;
+                const operator =
+                    row.operator != null && row.operator !== '' ? String(row.operator).trim() || null : null;
                 resolve({ registration: reg, type, description, operator });
-            }
+            },
         );
     });
 }
@@ -127,13 +150,17 @@ export function getAircraftInfoRowCount(): Promise<number> {
             resolve(0);
             return;
         }
-        database.get('SELECT COUNT(*) AS n FROM aircraft', [], (err: Error | null, row: { n: number } | undefined) => {
-            if (err || row == null) {
-                resolve(0);
-                return;
-            }
-            resolve(Number(row.n));
-        });
+        database.get(
+            'SELECT COUNT(*) AS n FROM aircraft',
+            [],
+            (err: Error | null, row: { n: number } | undefined) => {
+                if (err || row == null) {
+                    resolve(0);
+                    return;
+                }
+                resolve(Number(row.n));
+            },
+        );
     });
 }
 
@@ -166,23 +193,27 @@ export function getAircraftDbStats(): Promise<AircraftDbStats> {
             resolve({ count: 0, fileSizeBytes, lastUpdated });
             return;
         }
-        database.get('SELECT COUNT(*) AS n FROM aircraft', [], (err: Error | null, row: { n: number } | undefined) => {
-            if (err || row == null) {
-                resolve({ count: 0, fileSizeBytes: 0, lastUpdated: null });
-                return;
-            }
-            let lastUpdated: string | null = null;
-            let fileSizeBytes = 0;
-            try {
-                if (fs.existsSync(resolvedPath)) {
-                    const stat = fs.statSync(resolvedPath);
-                    lastUpdated = formatLocalTime(stat.mtime);
-                    fileSizeBytes = stat.size;
+        database.get(
+            'SELECT COUNT(*) AS n FROM aircraft',
+            [],
+            (err: Error | null, row: { n: number } | undefined) => {
+                if (err || row == null) {
+                    resolve({ count: 0, fileSizeBytes: 0, lastUpdated: null });
+                    return;
                 }
-            } catch {
-                // ignore
-            }
-            resolve({ count: row.n, fileSizeBytes, lastUpdated });
-        });
+                let lastUpdated: string | null = null;
+                let fileSizeBytes = 0;
+                try {
+                    if (fs.existsSync(resolvedPath)) {
+                        const stat = fs.statSync(resolvedPath);
+                        lastUpdated = formatLocalTime(stat.mtime);
+                        fileSizeBytes = stat.size;
+                    }
+                } catch {
+                    // ignore
+                }
+                resolve({ count: row.n, fileSizeBytes, lastUpdated });
+            },
+        );
     });
 }

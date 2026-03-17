@@ -1,5 +1,11 @@
 import { fetchAircraftData } from '../adsb/adsb';
-import { insertFlightData, getRecentCoordinates, clearAircraft, wasPostedRecently, recordPosted } from '../database/database';
+import {
+    insertFlightData,
+    getRecentCoordinates,
+    clearAircraft,
+    wasPostedRecently,
+    recordPosted,
+} from '../database/database';
 import { calculateCentroid, computeBearing } from '../helpers/coordinateUtils';
 import { isNearbyAirport, reverse, getClosestLandmark } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
@@ -11,7 +17,6 @@ import { getAircraftPhoto } from '../aircraftPhoto/getAircraftPhoto';
 import { incrementCircling } from '../health/metrics';
 import { formatLocalTime } from '../helpers/dateUtils';
 import * as log from '../log';
-
 
 /** Altitude (ft) below which we consider aircraft on ground; excluded from curviness. */
 const GROUND_ALT_FT = 0;
@@ -37,8 +42,12 @@ function filterAirborne<T extends { alt_baro?: number | null }>(coords: T[]): T[
  */
 export function getCirclingSegment(
     coords: { lat: number; lon: number; timestamp: number; r: string | null; alt_baro: number | null }[],
-    timeWindow: number
-): { segment: { lat: number; lon: number; timestamp: number }[]; curviness: number; logInfo?: CurvyPeriodLogInfo } | null {
+    timeWindow: number,
+): {
+    segment: { lat: number; lon: number; timestamp: number }[];
+    curviness: number;
+    logInfo?: CurvyPeriodLogInfo;
+} | null {
     const airborne = filterAirborne(coords);
     if (airborne.length < 2) return null;
 
@@ -48,7 +57,11 @@ export function getCirclingSegment(
 
     for (let i = 0; i < segment.length - 1; i++) {
         const t0 = segment[i].timestamp;
-        for (let durationMs = MIN_CIRCLE_WINDOW_MS; durationMs <= timeWindow; durationMs += CIRCLE_WINDOW_STEP_MS) {
+        for (
+            let durationMs = MIN_CIRCLE_WINDOW_MS;
+            durationMs <= timeWindow;
+            durationMs += CIRCLE_WINDOW_STEP_MS
+        ) {
             const tEnd = t0 + durationMs;
             let j = i;
             while (j < segment.length && segment[j].timestamp <= tEnd) j++;
@@ -82,8 +95,7 @@ export function calculateCurviness(segment: { lat: number; lon: number }[]): num
         const { lat: lat2, lon: lon2 } = segment[i];
 
         const bearing1 = computeBearing(lat1, lon1, lat2, lon2);
-        const bearing2 =
-            i > 1 ? computeBearing(segment[i - 2].lat, segment[i - 2].lon, lat1, lon1) : 0;
+        const bearing2 = i > 1 ? computeBearing(segment[i - 2].lat, segment[i - 2].lon, lat1, lon1) : 0;
 
         let diff = bearing2 - bearing1;
         if (diff > 180) diff -= 360;
@@ -103,7 +115,7 @@ const CIRCLE_START_TURN_DEG = 720;
  * Returns the segment from that index to end for centroid.
  */
 export function getCircleSegmentForCentroid(
-    segment: { lat: number; lon: number; timestamp: number }[]
+    segment: { lat: number; lon: number; timestamp: number }[],
 ): { lat: number; lon: number; timestamp: number }[] {
     if (segment.length < 2) return segment;
 
@@ -112,8 +124,7 @@ export function getCircleSegmentForCentroid(
         const { lat: lat1, lon: lon1 } = segment[i - 1];
         const { lat: lat2, lon: lon2 } = segment[i];
         const bearing1 = computeBearing(lat1, lon1, lat2, lon2);
-        const bearing2 =
-            i > 1 ? computeBearing(segment[i - 2].lat, segment[i - 2].lon, lat1, lon1) : 0;
+        const bearing2 = i > 1 ? computeBearing(segment[i - 2].lat, segment[i - 2].lon, lat1, lon1) : 0;
         let diff = bearing2 - bearing1;
         if (diff > 180) diff -= 360;
         if (diff < -180) diff += 360;
@@ -135,10 +146,9 @@ function isCircling(segment: { lat: number; lon: number }[]): boolean {
     return curviness >= TOTAL_CHANGE;
 }
 
-
 export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftData?: any[]): Promise<void> {
     log.info('Starting aircraft circling detection...');
-    const data = aircraftData ?? await fetchAircraftData();
+    const data = aircraftData ?? (await fetchAircraftData());
     const now = Date.now();
     const cutoff = now - TIME_WINDOW;
 
@@ -159,11 +169,13 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
 
             if (curvyPeriod?.logInfo && curvyPeriod.curviness > TOTAL_CHANGE / 4) {
                 const regFromCoords = recentCoords[0]?.r?.trim();
-                const regFromDb = regFromCoords ? null : (await getAircraftInfo(hex))?.registration ?? null;
+                const regFromDb = regFromCoords ? null : ((await getAircraftInfo(hex))?.registration ?? null);
                 const displayLabel = regFromCoords || regFromDb || hex || '?';
                 const curvinessStr = log.curvinessColor(curvyPeriod.curviness, TOTAL_CHANGE);
                 const linkPart = hex ? ` ${log.link(`${TAR1090_URL}?icao=${hex}`)}` : '';
-                log.dim(`Flight: ${displayLabel} Curviness: ${curvinessStr} Window Length: ${curvyPeriod.logInfo.minutes} minutes and ${curvyPeriod.logInfo.seconds} seconds${linkPart}`);
+                log.dim(
+                    `Flight: ${displayLabel} Curviness: ${curvinessStr} Window Length: ${curvyPeriod.logInfo.minutes} minutes and ${curvyPeriod.logInfo.seconds} seconds${linkPart}`,
+                );
             }
 
             if (curvyPeriod && isCircling(curvyPeriod.segment)) {
@@ -210,9 +222,11 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                 log.success(`Found circling aircraft ${hex}: ${log.link(link)}`);
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
                 // Use registration from API, or last known from our position history, or Mictronics DB
-                const rFromHistory = recentCoords.length > 0
-                    ? [...recentCoords].reverse().find((c) => c.r != null && c.r.trim() !== '')?.r ?? null
-                    : null;
+                const rFromHistory =
+                    recentCoords.length > 0
+                        ? ([...recentCoords].reverse().find((c) => c.r != null && c.r.trim() !== '')?.r ??
+                          null)
+                        : null;
                 let registration = rFromApi ?? rFromHistory ?? null;
                 let operator: string | null = null;
                 // Aircraft type: prefer API description (type_desc/desc), then Mictronics description, then type code, then API "t"
@@ -248,7 +262,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                     },
                     reverseGeoProps,
                     link,
-                    { landmark }
+                    { landmark },
                 );
                 const imageAlt = buildScreenshotAlt(reverseGeoProps, landmark, ac.flight);
                 const photo = await getAircraftPhoto(hex, registration);
@@ -259,11 +273,15 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                         alt: imageAlt ?? `Screenshot of the flight path of the flight ${ac.flight}`,
                         aspectRatio: { width: 1200, height: 800 },
                     },
-                    ...(photo ? [{
-                        data: photo.bytes,
-                        mimeType: photo.mimeType,
-                        alt: `Photo of aircraft ${registration ?? hex}. Source: ${photo.link ? photo.link : 'Aircraft photo provider'}${photo.photographer ? ` (Photo: ${photo.photographer})` : ''}`.trim(),
-                    }] : []),
+                    ...(photo
+                        ? [
+                              {
+                                  data: photo.bytes,
+                                  mimeType: photo.mimeType,
+                                  alt: `Photo of aircraft ${registration ?? hex}. Source: ${photo.link ? photo.link : 'Aircraft photo provider'}${photo.photographer ? ` (Photo: ${photo.photographer})` : ''}`.trim(),
+                              },
+                          ]
+                        : []),
                 ];
                 const success = await postToBluesky(ac, message, images);
 
@@ -280,8 +298,9 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
         }
     }
     const msg = `Aircraft detection completed. ${found} aircraft found. Excluded ${data.length - found} from check.`;
-    const nextPart = nextCheckInMs != null
-        ? ` Next check in ${nextCheckInMs / 1000}s at ${formatLocalTime(new Date(Date.now() + nextCheckInMs)).slice(11, 19)}.`
-        : '';
+    const nextPart =
+        nextCheckInMs != null
+            ? ` Next check in ${nextCheckInMs / 1000}s at ${formatLocalTime(new Date(Date.now() + nextCheckInMs)).slice(11, 19)}.`
+            : '';
     log.success(msg + nextPart);
 }

@@ -36,4 +36,3 @@ describe('log helpers', () => {
         expect(typeof over).toBe('string');
     });
 });
-

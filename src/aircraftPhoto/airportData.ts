@@ -47,7 +47,7 @@ async function readFreshMiss(missPath: string): Promise<boolean> {
     try {
         const raw = await fs.readFile(missPath, 'utf-8');
         const parsed = JSON.parse(raw) as { ts: number };
-        return typeof parsed.ts === 'number' && (Date.now() - parsed.ts) < MISS_TTL_MS;
+        return typeof parsed.ts === 'number' && Date.now() - parsed.ts < MISS_TTL_MS;
     } catch {
         return false;
     }
@@ -80,12 +80,15 @@ async function writeCachedJpg(jpgPath: string, bytes: Uint8Array): Promise<void>
     }
 }
 
-async function readCachedMeta(metaPath: string): Promise<{ photographer: string | null; link: string | null } | null> {
+async function readCachedMeta(
+    metaPath: string,
+): Promise<{ photographer: string | null; link: string | null } | null> {
     try {
         const raw = await fs.readFile(metaPath, 'utf-8');
         const parsed = JSON.parse(raw) as { photographer?: string | null; link?: string | null };
         return {
-            photographer: typeof parsed.photographer === 'string' ? parsed.photographer : (parsed.photographer ?? null),
+            photographer:
+                typeof parsed.photographer === 'string' ? parsed.photographer : (parsed.photographer ?? null),
             link: typeof parsed.link === 'string' ? parsed.link : (parsed.link ?? null),
         };
     } catch {
@@ -93,7 +96,10 @@ async function readCachedMeta(metaPath: string): Promise<{ photographer: string 
     }
 }
 
-async function writeCachedMeta(metaPath: string, meta: { photographer: string | null; link: string | null }): Promise<void> {
+async function writeCachedMeta(
+    metaPath: string,
+    meta: { photographer: string | null; link: string | null },
+): Promise<void> {
     try {
         await ensureCacheDir();
         await fs.writeFile(metaPath, JSON.stringify(meta), 'utf-8');
@@ -192,9 +198,7 @@ export async function getAirportDataPhoto(hex: string): Promise<AircraftPhoto | 
             return null;
         }
 
-        const mimeType =
-            mimeTypeFromHeaders(imgResp.headers?.['content-type']) ??
-            'image/jpeg';
+        const mimeType = mimeTypeFromHeaders(imgResp.headers?.['content-type']) ?? 'image/jpeg';
         const bytes = new Uint8Array(imgResp.data);
 
         // Only cache JPGs (airport-data almost always returns jpg); fall back to no cache for others.
@@ -217,4 +221,3 @@ export async function getAirportDataPhoto(hex: string): Promise<AircraftPhoto | 
         return null;
     }
 }
-

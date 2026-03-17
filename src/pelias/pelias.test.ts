@@ -73,4 +73,3 @@ describe('pelias helpers', () => {
         expect(lm!.name).toBe('Currant Creek');
     });
 });
-

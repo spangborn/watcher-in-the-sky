@@ -60,4 +60,3 @@ describe('getJetPhotosPhoto', () => {
         expect((axios.get as any).mock.calls[1][0]).toBe('https://cdn.jetphotos.com/full/test.jpg');
     });
 });
-

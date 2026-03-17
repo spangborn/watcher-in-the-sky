@@ -26,4 +26,3 @@ describe('metrics', () => {
         expect(metrics.startedAt instanceof Date).toBe(true);
     });
 });
-

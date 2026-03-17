@@ -13,9 +13,15 @@ vi.mock('fs/promises', () => {
     const err: any = new Error('ENOENT');
     err.code = 'ENOENT';
     return {
-        readFile: vi.fn(async () => { throw err; }),
-        writeFile: vi.fn(async () => { /* noop */ }),
-        mkdir: vi.fn(async () => { /* noop */ }),
+        readFile: vi.fn(async () => {
+            throw err;
+        }),
+        writeFile: vi.fn(async () => {
+            /* noop */
+        }),
+        mkdir: vi.fn(async () => {
+            /* noop */
+        }),
     };
 });
 
@@ -72,7 +78,8 @@ describe('getAirportDataPhoto', () => {
         expect((axios.get as any).mock.calls.length).toBe(2);
 
         // Second request should prefer the hi-res CDN URL derived from the photo id.
-        expect((axios.get as any).mock.calls[1][0]).toBe('https://image.airport-data.com/aircraft/582407.jpg');
+        expect((axios.get as any).mock.calls[1][0]).toBe(
+            'https://image.airport-data.com/aircraft/582407.jpg',
+        );
     });
 });
-

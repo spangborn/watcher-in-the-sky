@@ -104,7 +104,8 @@ function locationPhrase(props: ReverseGeoProperties | null, random: () => number
     if (n && county && isDistinct(n, county)) options.push([`${n}, ${county}`, 3]);
     if (loc) options.push([loc, 3]);
     if (localadmin && isDistinctOrMissing(localadmin, loc)) options.push([localadmin, 1]);
-    if (name && isDistinctOrMissing(name, loc) && isDistinctOrMissing(name, localadmin)) options.push([name, 0.5]);
+    if (name && isDistinctOrMissing(name, loc) && isDistinctOrMissing(name, localadmin))
+        options.push([name, 0.5]);
 
     // De-duplicate identical strings that can still arise via different fields.
     const seen = new Set<string>();
@@ -163,17 +164,17 @@ function squawkPart(ac: AircraftFields): string {
 function landmarkPart(landmark: LandmarkInfo | null | undefined): string {
     if (!landmark?.name) return '';
     const name = landmark.name.trim();
-    const dist = typeof landmark.distanceMiles === 'number'
-        ? landmark.distanceMiles.toFixed(1)
-        : String(landmark.distanceMiles);
+    const dist =
+        typeof landmark.distanceMiles === 'number'
+            ? landmark.distanceMiles.toFixed(1)
+            : String(landmark.distanceMiles);
     return ` ${dist} miles from ${name}`;
 }
 
 function firePart(fire: FireInfo | null | undefined): string {
     if (!fire?.name) return '';
-    const dist = typeof fire.distanceMiles === 'number'
-        ? fire.distanceMiles.toFixed(1)
-        : String(fire.distanceMiles);
+    const dist =
+        typeof fire.distanceMiles === 'number' ? fire.distanceMiles.toFixed(1) : String(fire.distanceMiles);
     return ` ${dist} miles from the ${fire.name.trim()}`;
 }
 
@@ -193,7 +194,11 @@ export function buildCirclingMessage(
     ac: AircraftFields,
     reverseGeoProps: ReverseGeoProperties | null,
     viewMoreUrl: string,
-    options?: { landmark?: LandmarkInfo | null; fire?: FireInfo | null; /** For deterministic tests */ random?: RandomFn }
+    options?: {
+        landmark?: LandmarkInfo | null;
+        fire?: FireInfo | null;
+        /** For deterministic tests */ random?: RandomFn;
+    },
 ): string {
     const random = options?.random ?? Math.random;
     const id = idAndType(ac, random);
@@ -227,7 +232,7 @@ export function buildImagingMessage(
     ac: AircraftFields,
     reverseGeoProps: ReverseGeoProperties | null,
     viewMoreUrl: string,
-    options?: { landmark?: LandmarkInfo | null; fire?: FireInfo | null; random?: RandomFn }
+    options?: { landmark?: LandmarkInfo | null; fire?: FireInfo | null; random?: RandomFn },
 ): string {
     const random = options?.random ?? Math.random;
     const id = idAndType(ac, random);
@@ -245,10 +250,10 @@ export function buildImagingMessage(
     const middleWithSpace = middle ? (middle.startsWith(' ') ? middle : ' ' + middle) : '';
     const idCall = call ? `${id},${call}` : id;
     const idCallOp = idCall + operatorPart(ac, id);
-    const beforeVerb = idCallOp.includes(',') ? ', appears to be on an imaging/survey pattern' : ' appears to be on an imaging/survey pattern';
-    const verb = loc
-        ? `${beforeVerb} over ${loc}${middleWithSpace}`
-        : `${beforeVerb}${middleWithSpace}`;
+    const beforeVerb = idCallOp.includes(',')
+        ? ', appears to be on an imaging/survey pattern'
+        : ' appears to be on an imaging/survey pattern';
+    const verb = loc ? `${beforeVerb} over ${loc}${middleWithSpace}` : `${beforeVerb}${middleWithSpace}`;
 
     return `${normalizeSpaces(`${idCallOp}${verb}`)}\n${viewMoreUrl}`;
 }
@@ -259,10 +264,10 @@ export function buildImagingMessage(
 export function buildScreenshotAlt(
     reverseGeoProps: ReverseGeoProperties | null,
     landmark: LandmarkInfo | null | undefined,
-    flight: string | null | undefined
+    flight: string | null | undefined,
 ): string {
     const loc = locationPhrase(reverseGeoProps);
-    const flightPart = (flight?.trim()) || 'aircraft';
+    const flightPart = flight?.trim() || 'aircraft';
     let alt = `Screenshot of the flight path of ${flightPart}`;
     if (loc) alt += ` over ${loc}`;
     if (landmark?.name) {
