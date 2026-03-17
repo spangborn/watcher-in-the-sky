@@ -4,6 +4,14 @@ import * as log from '../log';
 
 const agent = new AtpAgent({ service: 'https://bsky.social' });
 
+export type BlueskyImage = {
+    data: Uint8Array;
+    /** MIME type for the upload (e.g. image/jpeg). */
+    mimeType: string;
+    alt: string;
+    aspectRatio?: { width: number; height: number };
+};
+
 export async function loginToBluesky(): Promise<void> {
     try {
         await agent.login({ identifier: BLUESKY_USERNAME, password: BLUESKY_PASSWORD });
@@ -16,13 +24,15 @@ export async function loginToBluesky(): Promise<void> {
 export async function postToBluesky(
     aircraft: any,
     message: string,
-    screenshot_data?: Uint8Array,
-    imageAlt?: string
+    images?: BlueskyImage[]
 ): Promise<boolean> {
     const dryRun = BLUESKY_DRY_RUN || BLUESKY_DEBUG;
     if (dryRun) {
         log.info('\n--- BLUESKY DRY RUN (not posting) ---');
         log.dim(message);
+        if (images && images.length > 0) {
+            log.dim(`(images: ${images.length})`);
+        }
         log.info('---\n');
         return true;
     }
@@ -35,11 +45,19 @@ export async function postToBluesky(
 
     try {
 
-        // If we have a screenshot, upload it and post with image; otherwise post text-only
-        if (screenshot_data && screenshot_data.length > 0) {
-            const { data } = await agent.uploadBlob(screenshot_data, {
-                encoding: "image/jpg",
-            });
+        const validImages = (images ?? []).filter((img) => img.data && img.data.length > 0).slice(0, 4);
+        if (validImages.length > 0) {
+            const uploaded = [];
+            for (const img of validImages) {
+                const { data } = await agent.uploadBlob(img.data, {
+                    encoding: img.mimeType,
+                });
+                uploaded.push({
+                    alt: img.alt,
+                    image: data.blob,
+                    ...(img.aspectRatio ? { aspectRatio: img.aspectRatio } : {}),
+                });
+            }
             const postRecord: Partial<AppBskyFeedPost.Record> & Omit<AppBskyFeedPost.Record, 'createdAt'> = {
                 $type: "app.bsky.feed.post",
                 langs: ["en-US"],
@@ -47,14 +65,7 @@ export async function postToBluesky(
                 facets: rt.facets,
                 embed: {
                     $type: 'app.bsky.embed.images',
-                    images: [{
-                        alt: imageAlt ?? `Screenshot of the flight path of the flight ${aircraft.flight}`,
-                        image: data.blob,
-                        aspectRatio: {
-                            width: 1200,
-                            height: 800
-                          }
-                    }]
+                    images: uploaded
                 }
             };
             await agent.post(postRecord);

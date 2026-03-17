@@ -12,6 +12,7 @@ import { TAR1090_URL, TIME_WINDOW } from '../constants';
 import { captureScreenshot } from '../screenshot/screenshot';
 import { buildImagingMessage, buildScreenshotAlt, type ReverseGeoProperties } from '../generation/message';
 import { getRecord as getAircraftInfo } from '../aircraftInfo/aircraftInfo';
+import { getAirportDataPhoto } from '../aircraftPhoto/airportData';
 import { incrementZigzag } from '../health/metrics';
 import { formatLocalTime } from '../helpers/dateUtils';
 import * as log from '../log';
@@ -141,7 +142,21 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
             link
         );
         const imageAlt = buildScreenshotAlt(reverseGeoProps, null, ac.flight);
-        const success = await postToBluesky(ac, message, screenshot_data, imageAlt);
+        const photo = await getAirportDataPhoto(hex);
+        const images = [
+            {
+                data: screenshot_data,
+                mimeType: 'image/jpeg',
+                alt: imageAlt ?? `Screenshot of the flight path of the flight ${ac.flight}`,
+                aspectRatio: { width: 1200, height: 800 },
+            },
+            ...(photo ? [{
+                data: photo.bytes,
+                mimeType: photo.mimeType,
+                alt: `Photo of aircraft ${registration ?? hex}. Source: Airport-Data.com${photo.photographer ? ` (Photo: ${photo.photographer})` : ''}${photo.link ? ` ${photo.link}` : ''}`.trim(),
+            }] : []),
+        ];
+        const success = await postToBluesky(ac, message, images);
 
         if (success) {
             try {

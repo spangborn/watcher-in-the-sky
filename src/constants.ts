@@ -22,6 +22,10 @@ export const BLUESKY_DRY_RUN = process.env.BLUESKY_DRY_RUN === 'true' || process
 export const USER_AGENT = process.env.USER_AGENT || 'Watcher in the Sky';
 /** Data directory for both DBs. Default ./data locally; Docker sets /home/node/app/data. Trailing slash stripped. */
 const DATA_DIR = (process.env.DATA_DIR || './data').replace(/\/$/, '');
+/** Whether to fetch aircraft photos from airport-data.com when posting. Default true. */
+export const AIRCRAFT_PHOTO_ENABLED = process.env.AIRCRAFT_PHOTO_ENABLED !== 'false';
+/** On-disk cache dir for aircraft photos/misses. */
+export const AIRCRAFT_PHOTO_CACHE_DIR = process.env.AIRCRAFT_PHOTO_CACHE_DIR || (DATA_DIR + '/aircraft_photos');
 /** Optional path to SQLite DB from Mictronics aircraft data (see scripts/create-aircraft-db.ts). Derived from DATA_DIR when unset; set to empty string to disable. */
 export const AIRCRAFT_INFO_DB = process.env.AIRCRAFT_INFO_DB !== undefined ? process.env.AIRCRAFT_INFO_DB : DATA_DIR + '/aircraft_info.db';
 /** Path to SQLite DB for tracking aircraft positions and post cooldowns. Derived from DATA_DIR when unset. */
