@@ -22,6 +22,7 @@ type AirportDataApiResponse = {
 };
 
 const MISS_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+const AIRPORT_DATA_HIRES_HOST = 'https://image.airport-data.com/aircraft';
 
 function normalizeHex(hex: string): string {
     return hex.replace(/^~/, '').toLowerCase();
@@ -109,6 +110,20 @@ function mimeTypeFromHeaders(contentType: unknown): AircraftPhoto['mimeType'] | 
     return null;
 }
 
+function airportDataPhotoIdFromLinkOrImage(link?: string, image?: string): string | null {
+    const s = `${link ?? ''} ${image ?? ''}`;
+    // link example: https://airport-data.com/aircraft/photo/000582407.html
+    const fromLink = s.match(/\/aircraft\/photo\/0*([0-9]+)\.html/i)?.[1];
+    if (fromLink) return fromLink;
+    // thumbnail example: https://airport-data.com/images/aircraft/thumbnails/000/582/582407.jpg
+    const fromThumb = s.match(/\/thumbnails\/(?:\d+\/)*([0-9]+)\.jpg/i)?.[1];
+    if (fromThumb) return fromThumb;
+    // sometimes the id appears as AC582407
+    const fromAc = s.match(/\bAC([0-9]+)\b/i)?.[1];
+    if (fromAc) return fromAc;
+    return null;
+}
+
 /**
  * Fetch an aircraft photo via Airport-Data.com (same service Advisory Circular uses).
  * Returns null if no photo exists or the provider is unavailable.
@@ -155,12 +170,21 @@ export async function getAirportDataPhoto(hex: string): Promise<AircraftPhoto | 
             return null;
         }
 
-        const imgResp = await axios.get<ArrayBuffer>(imageUrl, {
-            responseType: 'arraybuffer',
-            timeout: 5000,
-            headers: { 'User-Agent': 'Watcher in the Sky' },
-            validateStatus: (s) => s >= 200 && s < 500,
-        });
+        // Airport-Data's official API returns only 200px-wide thumbnails. We can often fetch the original image by
+        // deriving the photo id and hitting the image CDN.
+        const photoId = airportDataPhotoIdFromLinkOrImage(entry?.link, imageUrl);
+        const hiResUrl = photoId ? `${AIRPORT_DATA_HIRES_HOST}/${photoId}.jpg` : null;
+
+        const tryFetch = async (url: string) =>
+            axios.get<ArrayBuffer>(url, {
+                responseType: 'arraybuffer',
+                timeout: 5000,
+                headers: { 'User-Agent': 'Watcher in the Sky' },
+                validateStatus: (s) => s >= 200 && s < 500,
+            });
+
+        const hiResResp = hiResUrl ? await tryFetch(hiResUrl) : null;
+        const imgResp = hiResResp && hiResResp.status === 200 ? hiResResp : await tryFetch(imageUrl);
 
         if (imgResp.status !== 200) {
             log.warn(`${hex}: airport-data image fetch returned ${imgResp.status}`);

@@ -5,7 +5,7 @@
 import { fetchAircraftData } from '../adsb/adsb';
 import { insertFlightData, getRecentCoordinates, clearAircraft, wasPostedRecently, recordPosted } from '../database/database';
 import { calculateCentroid, getBoundsZoomCenter } from '../helpers/coordinateUtils';
-import { findZigzagPeriod, isZigzagPattern, zigzagFailureReason, getZigzagSubSegment } from '../helpers/zigzag';
+import { findZigzagPeriod, zigzagPeriodFailureReason, getZigzagSubSegment } from '../helpers/zigzag';
 import { isNearbyAirport, reverse } from '../pelias/pelias';
 import { postToBluesky } from '../bluesky/bluesky';
 import { TAR1090_URL, TIME_WINDOW } from '../constants';
@@ -40,8 +40,7 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
             recentCoords.map(c => ({ lat: c.lat, lon: c.lon, timestamp: c.timestamp })),
             TIME_WINDOW,
             undefined, // minReversals: use default (3)
-            1, // stride
-            TIME_WINDOW // minWindowMs: fixed 40-min window
+            1 // stride (currently ignored)
         );
 
         if (!zigzagPeriod) continue;
@@ -54,9 +53,8 @@ export async function detectZigzagAircraft(nextCheckInMs?: number, aircraftData?
         const seconds = ((timestampDiff % 60000) / 1000).toFixed(0);
         log.dim(`Flight: ${displayLabel} Zig-zags: ${zigzagPeriod.reversals} Window Length: ${minutes} minutes and ${seconds} seconds${linkPart}`);
 
-        const toValidate = zigzagPeriod.segmentForValidation ?? zigzagPeriod.segment;
-        if (!isZigzagPattern(toValidate)) {
-            const reason = zigzagFailureReason(toValidate);
+        const reason = zigzagPeriodFailureReason(zigzagPeriod);
+        if (reason) {
             log.dim(`Skipped ${displayLabel} (${zigzagPeriod.reversals} reversals): ${reason ?? 'unknown'}`);
             continue;
         }

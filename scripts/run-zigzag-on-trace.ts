@@ -19,6 +19,7 @@ import {
     getZigzagSubSegment,
     getLegSegments,
     legsHaveConsistentLength,
+    zigzagPeriodFailureReason,
 } from '../src/helpers/zigzag';
 import { calculateCentroid, distanceMeters } from '../src/helpers/coordinateUtils';
 
@@ -79,6 +80,8 @@ function main(): void {
     const windowMin = windowMinArg != null ? parseInt(windowMinArg, 10) : null;
     const minReversals = minRevArg != null && !Number.isNaN(parseInt(minRevArg, 10)) ? parseInt(minRevArg, 10) : undefined;
     const windowMs = windowMin != null && !Number.isNaN(windowMin) ? windowMin * 60 * 1000 : TIME_WINDOW;
+    // Dynamic window; additional false-positive protection is handled inside findZigzagPeriod.
+    const minWindowMs = Math.floor(windowMs / 4);
     if (intervalSec > 0 || stride > 1 || windowMin != null) {
         const raw = JSON.parse(fs.readFileSync(resolved, 'utf-8')) as TraceFile;
         console.log('Raw trace points:', raw.trace?.length ?? 0, '| Interval:', intervalSec, 's', '| Stride:', stride, '| Window:', windowMin != null ? windowMin + ' min' : TIME_WINDOW / 60000 + ' min');
@@ -91,7 +94,8 @@ function main(): void {
         process.exit(0);
     }
 
-    const period = findZigzagPeriod(coords, windowMs, minReversals, stride, windowMs);
+    // Dynamic window up to windowMs (min defaults to ~windowMs/4).
+    const period = findZigzagPeriod(coords, windowMs, minReversals, stride, minWindowMs);
 
     if (!period) {
         const LEG_CHECK_EXTEND_POINTS = 30;
@@ -99,17 +103,20 @@ function main(): void {
         let maxReversals = 0;
         let bestCandidate: { window: typeof coords; i: number; j: number; rev: number } | null = null;
         for (let i = 0; i < coords.length; i++) {
-            const endIdx = coords.findIndex(
-                (c, idx) => idx > i && c.timestamp - coords[i].timestamp > windowMs
-            );
-            const window = endIdx === -1 ? coords.slice(i) : coords.slice(i, endIdx);
-            const j = endIdx === -1 ? coords.length - 1 : endIdx - 1;
-            if (window.length >= 3) {
+            const t0 = coords[i]!.timestamp;
+            let j = i;
+            const stepMs = 2 * 60 * 1000;
+            for (let targetDur = minWindowMs; targetDur <= windowMs; targetDur += stepMs) {
+                while (j < coords.length && coords[j]!.timestamp - t0 < targetDur) j++;
+                if (j <= i + 1) continue;
+                const window = coords.slice(i, j + 1);
+                const jj = j;
+                if (window.length < 3) continue;
                 const strided = stride > 1 ? window.filter((_, idx) => idx % stride === 0) : window;
                 const rev = countZigzagReversals(strided);
                 if (rev > maxReversals) maxReversals = rev;
                 if (rev >= minRev && (!bestCandidate || rev > bestCandidate.rev)) {
-                    bestCandidate = { window, i, j, rev };
+                    bestCandidate = { window, i, j: jj, rev };
                 }
             }
         }
@@ -134,11 +141,10 @@ function main(): void {
     }
 
     console.log('Best window: reversals =', period.reversals, 'points =', period.segment.length);
-    const toValidate = period.segmentForValidation ?? period.segment;
-    const passed = isZigzagPattern(toValidate, undefined, stride);
+    const reason = zigzagPeriodFailureReason(period, undefined, stride);
+    const passed = reason === null;
     console.log('Passes isZigzagPattern (parallel legs etc.):', passed);
     if (!passed) {
-        const reason = zigzagFailureReason(toValidate, undefined, stride);
         console.log('  Failure reason:', reason ?? '(unknown)');
     }
 

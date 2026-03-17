@@ -8,8 +8,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TIME_WINDOW } from '../src/constants';
-import { findZigzagPeriod, getZigzagSubSegment, getLegSegments, trimLegsToStraightWithGroupDirection } from '../src/helpers/zigzag';
-import { calculateCentroid } from '../src/helpers/coordinateUtils';
+import { findZigzagPeriod, getZigzagSubSegment, trimLegsToStraightWithGroupDirection } from '../src/helpers/zigzag';
+import { calculateCentroid, computeBearing, distanceMeters } from '../src/helpers/coordinateUtils';
 
 interface TraceFile {
     icao?: string;
@@ -115,6 +115,70 @@ function pathToPoints(
         .join(' ');
 }
 
+function bearingDiff(b1: number, b2: number): number {
+    let d = Math.abs(b1 - b2);
+    if (d > 180) d = 360 - d;
+    return d;
+}
+
+/**
+ * For visualization, we want to show each straight survey "pass" as its own leg.
+ * The detector's reversal logic intentionally ignores some turns (e.g. too short / too gradual),
+ * which can merge two passes into one. This splitter is render-only and more permissive.
+ */
+function splitIntoLegsForRender(segment: { lat: number; lon: number }[]): { lat: number; lon: number }[][] {
+    if (segment.length < 3) return [segment];
+    const MIN_LEG_M = 1200;
+    const TURN_WINDOW = 3;
+    const MIN_TURN_DIFF_DEG = 110;
+
+    const splitIdxs: number[] = [];
+    let lastSplit = 0;
+
+    const pathDistSince = (fromIdx: number, toIdx: number): number => {
+        let d = 0;
+        for (let k = fromIdx; k < toIdx && k < segment.length - 1; k++) {
+            d += distanceMeters(segment[k].lat, segment[k].lon, segment[k + 1].lat, segment[k + 1].lon);
+        }
+        return d;
+    };
+
+    const bearings: number[] = [];
+    for (let i = 0; i < segment.length - 1; i++) {
+        bearings.push(computeBearing(segment[i].lat, segment[i].lon, segment[i + 1].lat, segment[i + 1].lon));
+    }
+
+    const circMean = (arr: number[]): number => {
+        let s = 0, c = 0;
+        for (const d of arr) {
+            const r = (d * Math.PI) / 180;
+            s += Math.sin(r);
+            c += Math.cos(r);
+        }
+        const rad = Math.atan2(s / arr.length, c / arr.length);
+        return ((rad * 180) / Math.PI + 360) % 360;
+    };
+
+    for (let i = TURN_WINDOW; i <= bearings.length - TURN_WINDOW; i++) {
+        const before = circMean(bearings.slice(i - TURN_WINDOW, i));
+        const after = circMean(bearings.slice(i, i + TURN_WINDOW));
+        if (bearingDiff(before, after) < MIN_TURN_DIFF_DEG) continue;
+        if (pathDistSince(lastSplit, i) < MIN_LEG_M) continue;
+        splitIdxs.push(i);
+        lastSplit = i;
+    }
+
+    if (splitIdxs.length === 0) return [segment];
+    const legs: { lat: number; lon: number }[][] = [];
+    let start = 0;
+    for (const idx of splitIdxs) {
+        legs.push(segment.slice(start, idx + 1));
+        start = idx;
+    }
+    if (start < segment.length - 1) legs.push(segment.slice(start));
+    return legs.filter((l) => l.length >= 2);
+}
+
 function main(): void {
     const filePath = process.argv[2];
     const outPath = process.argv[3] || null;
@@ -141,8 +205,8 @@ function main(): void {
         process.exit(1);
     }
 
-    // Use a fixed-length window (same as test-traces README / run-zigzag-on-trace).
-    const period = findZigzagPeriod(coords, windowMs, undefined, stride, windowMs);
+    // Dynamic window; additional false-positive protection is handled inside findZigzagPeriod.
+    const period = findZigzagPeriod(coords, windowMs, undefined, stride);
     let zigzagSegment = period?.segment ?? null;
     if (zigzagSegment && zigzagSegment.length > 0) {
         const t0 = zigzagSegment[0].timestamp;
@@ -158,10 +222,25 @@ function main(): void {
             );
         }
     }
-    const subSegment = zigzagSegment ? getZigzagSubSegment(period!.segment, stride) : null;
-    const centroid = subSegment && subSegment.length > 0 ? calculateCentroid(subSegment) : null;
-    const rawLegs = zigzagSegment ? getLegSegments(zigzagSegment, stride) : [];
-    const legSegments = trimLegsToStraightWithGroupDirection(rawLegs);
+    // For rendering, prefer the best detected window itself. `getZigzagSubSegment` relies on the
+    // stricter reversal logic (intended for classification) and can drop/merge legs we want to visualize.
+    const legBaseSegment = period ? period.segment : null;
+    const centroid = legBaseSegment && legBaseSegment.length > 0 ? calculateCentroid(legBaseSegment) : null;
+
+    // Render-only leg splitting + aggressive trimming to straight portions.
+    const rawLegs = legBaseSegment ? splitIntoLegsForRender(legBaseSegment) : [];
+    const TRIM_DEG_FOR_RENDER = 15;
+    // Only show meaningful survey passes as "legs" in the overlay.
+    const MIN_RENDER_LEG_M = 8000;
+    const legSegments = trimLegsToStraightWithGroupDirection(rawLegs, TRIM_DEG_FOR_RENDER)
+        .filter((leg) => leg.length >= 2)
+        .filter((leg) => {
+            let d = 0;
+            for (let i = 0; i < leg.length - 1; i++) {
+                d += distanceMeters(leg[i].lat, leg[i].lon, leg[i + 1].lat, leg[i + 1].lon);
+            }
+            return d >= MIN_RENDER_LEG_M;
+        });
 
     const drawBounds = zigzagSegment && zigzagSegment.length > 0 ? mercatorBounds(zigzagSegment) : mercatorBounds(coords);
     const fit = fitMercatorToViewport(drawBounds, WIDTH, HEIGHT);

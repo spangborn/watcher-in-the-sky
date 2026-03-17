@@ -6,16 +6,32 @@ const MIN_TURN_DEG = 70;
 const MIN_REVERSALS = 3;
 /** Minimum leg length in meters (path distance). Ensures back-and-forth is over real distance, not just wiggles. */
 const MIN_LEG_DISTANCE_M = 2000;
+/**
+ * Minimum leg length (m) required *only to count a reversal*.
+ * Keep this a bit lower than MIN_LEG_DISTANCE_M so we don't accidentally merge two real survey passes
+ * into one "leg" when one pass is shorter (or partially trimmed by turns / sampling).
+ *
+ * We still enforce MIN_LEG_DISTANCE_M elsewhere (balance, consistency), so this mainly affects leg splitting.
+ */
+const MIN_REVERSAL_LEG_DISTANCE_M = MIN_LEG_DISTANCE_M;
 /** Min ratio of smaller to larger direction distance (so flight is more back-and-forth than one-sided). */
 const MIN_DIRECTION_BALANCE_RATIO = 0.4;
 /** Turn must be toward opposite direction (not shallow); survey ~180°, circles ~90°. */
 const MIN_OPPOSITE_DEG = 80;
 /** Max bearing spread (degrees) for legs in the same direction to count as parallel. Legs must be almost completely parallel. */
-const PARALLEL_TOLERANCE_DEG = 6;
+const PARALLEL_TOLERANCE_DEG = 10;
 /** Min angle (degrees) between the two leg directions for imaging (should be ~180). */
-const MIN_OPPOSITE_LEG_DEG = 170;
+const MIN_OPPOSITE_LEG_DEG = 165;
 /** Max ratio of longest to shortest leg length (among legs >= MIN_LEG_DISTANCE_M). Rejects one long transit + short wiggles. */
 const MAX_LEG_LENGTH_RATIO = 5;
+/** Median straight-leg length (m) required for imaging; rejects short wiggles that look parallel. */
+const MIN_MEDIAN_LEG_DISTANCE_M = 8000;
+/**
+ * Imaging survey passes typically alternate directions; adjacent straight legs should mostly be
+ * in opposite heading groups (A/B/A/B). Allow a small number of "same direction twice" events
+ * for noisy data / missed turns.
+ */
+const MAX_SAME_DIRECTION_ADJACENT = 1;
 /** When checking leg consistency, extend the window by this many points on each side to catch long transit legs. */
 const LEG_CHECK_EXTEND_POINTS = 30;
 
@@ -23,6 +39,8 @@ const LEG_CHECK_EXTEND_POINTS = 30;
 const TURN_WINDOW = 3;
 /** Max bearing deviation (deg) from leg mean to count as still on the straight leg; trim turn portions at each end (works for any direction). */
 const TRIM_LEG_BEARING_DEG = 35;
+/** When validating on an extended window, pad around chosen window by this much time (ms). */
+const VALIDATION_PAD_MS = 2 * 60 * 1000;
 /**
  * Imaging/survey patterns should "march" across the area: the turn points progress steadily
  * along the axis perpendicular to the parallel legs (in either direction).
@@ -87,27 +105,44 @@ function bearingUnitEN(bearingDeg: number): { ue: number; un: number } {
  * Accepts either direction (increasing or decreasing), but rejects backtracking above tolerance.
  */
 function progressesPerpendicularToLegs(segment: { lat: number; lon: number }[]): boolean {
-    const { legBearings, reversalIndices } = getLegBearings(segment);
-    if (reversalIndices.length < 2 || legBearings.length < 2) return true;
+    // Use trimmed straight legs and their endpoints as turnpoints.
+    const rawLegs = getLegSegments(segment, 1);
+    const trimmedLegs = trimLegsToStraightWithGroupDirection(rawLegs);
+    if (trimmedLegs.length < 2) return true;
 
-    // Determine the leg axis from one group (avoid circular-mean cancellation of opposite headings).
-    const oddBearings = legBearings.filter((_, i) => i % 2 === 0);
-    const evenBearings = legBearings.filter((_, i) => i % 2 === 1);
-    const axisBearing =
-        oddBearings.length > 0 ? circularMeanDeg(oddBearings)
-            : evenBearings.length > 0 ? circularMeanDeg(evenBearings)
-                : legBearings[0];
+    const usableLegs = trimmedLegs.filter((leg) => {
+        if (leg.length < 2) return false;
+        let d = 0;
+        for (let i = 0; i < leg.length - 1; i++) {
+            d += distanceMeters(leg[i].lat, leg[i].lon, leg[i + 1].lat, leg[i + 1].lon);
+        }
+        return d >= MIN_LEG_DISTANCE_M;
+    });
+    if (usableLegs.length < 2) return false;
 
+    const bearings = usableLegs.map((leg) => legMeanBearing(leg));
+    // Determine axis from one direction cluster (avoid cancellation between opposite headings).
+    let meanA = bearings[0]!;
+    let meanB = (meanA + 180) % 360;
+    let groupA: number[] = [];
+    let groupB: number[] = [];
+    for (let iter = 0; iter < 2; iter++) {
+        groupA = [];
+        groupB = [];
+        for (const b of bearings) {
+            const dA = bearingDiff(b, meanA);
+            const dB = bearingDiff(b, meanB);
+            (dA <= dB ? groupA : groupB).push(b);
+        }
+        if (groupA.length > 0) meanA = circularMeanDeg(groupA);
+        if (groupB.length > 0) meanB = circularMeanDeg(groupB);
+    }
+    const axisBearing = meanA;
     const perpBearing = (axisBearing + 90) % 360;
     const perpUnit = bearingUnitEN(perpBearing);
 
-    // Use the segment midpoint as origin for stability.
     const origin = segment[Math.floor(segment.length / 2)];
-    const turnPoints = reversalIndices
-        // reversal index is a bearing-array index; the actual "turn" is between point idx and idx+1.
-        // Use idx+1 so lateral steps that happen at the turn are reflected in progression.
-        .map((idx) => segment[Math.max(0, Math.min(idx + 1, segment.length - 1))])
-        .filter(Boolean);
+    const turnPoints = usableLegs.map((leg) => leg[leg.length - 1]!);
     if (turnPoints.length < 2) return true;
 
     const perpCoords = turnPoints.map((p) => {
@@ -163,6 +198,13 @@ function maxSpread(arr: number[]): number {
         }
     }
     return max;
+}
+
+function sliceByTimestamp<T extends { timestamp: number }>(coords: T[], startTs: number, endTs: number): T[] {
+    if (coords.length === 0) return coords;
+    const s = startTs - VALIDATION_PAD_MS;
+    const e = endTs + VALIDATION_PAD_MS;
+    return coords.filter((c) => c.timestamp >= s && c.timestamp <= e);
 }
 
 /**
@@ -237,8 +279,9 @@ function findReversalIndices(segment: { lat: number; lon: number }[]): ReversalI
     const w = TURN_WINDOW;
     if (bearings.length < w * 2) return result;
 
-    let prevTurnSign: number | null = null;
     let lastReversalIdx = -1;
+
+    let prevTurnSign: number | null = null;
 
     for (let i = w; i <= bearings.length - w; i++) {
         const beforeMean = circularMeanDeg(bearings.slice(i - w, i));
@@ -249,7 +292,7 @@ function findReversalIndices(segment: { lat: number; lon: number }[]): ReversalI
         const legStartPoint = lastReversalIdx + 1;
         const legEndPoint = i;
         const legDistM = pathDistanceM(segment, legStartPoint, legEndPoint);
-        const legLongEnough = legDistM >= MIN_LEG_DISTANCE_M;
+        const legLongEnough = legDistM >= MIN_REVERSAL_LEG_DISTANCE_M;
 
         const sign = Math.sign(delta);
         const isFirstOrAlternating = (prevTurnSign === null || (sign !== 0 && sign !== prevTurnSign));
@@ -337,13 +380,49 @@ function getLegDistancesM(segment: { lat: number; lon: number }[]): number[] {
 
 /** True if leg lengths are reasonably consistent (imaging has similar-length passes, not one long leg + short wiggles). */
 export function legsHaveConsistentLength(segment: { lat: number; lon: number }[]): boolean {
-    const distances = getLegDistancesM(segment);
+    // Use trimmed straight legs for consistency; turn arcs and missed reversals can skew raw distances.
+    const rawLegs = getLegSegments(segment, 1);
+    const trimmed = trimLegsToStraightWithGroupDirection(rawLegs);
+    const distances = trimmed
+        .filter((leg) => leg.length >= 2)
+        .map((leg) => {
+            let d = 0;
+            for (let i = 0; i < leg.length - 1; i++) {
+                d += distanceMeters(leg[i].lat, leg[i].lon, leg[i + 1].lat, leg[i + 1].lon);
+            }
+            return d;
+        });
     const qualifying = distances.filter((d) => d >= MIN_LEG_DISTANCE_M);
     if (qualifying.length < 2) return true;
     const minD = Math.min(...qualifying);
     const maxD = Math.max(...qualifying);
     if (minD <= 0) return false;
     return maxD / minD <= MAX_LEG_LENGTH_RATIO;
+}
+
+function median(values: number[]): number {
+    if (values.length === 0) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 1) return sorted[mid]!;
+    return (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+function legsHaveSufficientMedianLength(segment: { lat: number; lon: number }[]): boolean {
+    const rawLegs = getLegSegments(segment, 1);
+    const trimmed = trimLegsToStraightWithGroupDirection(rawLegs);
+    const distances = trimmed
+        .filter((leg) => leg.length >= 2)
+        .map((leg) => {
+            let d = 0;
+            for (let i = 0; i < leg.length - 1; i++) {
+                d += distanceMeters(leg[i].lat, leg[i].lon, leg[i + 1].lat, leg[i + 1].lon);
+            }
+            return d;
+        })
+        .filter((d) => d >= MIN_LEG_DISTANCE_M);
+    if (distances.length < 3) return false;
+    return median(distances) >= MIN_MEDIAN_LEG_DISTANCE_M;
 }
 
 /** True if the two directions have substantial and balanced distance (more back-and-forth than one-sided). */
@@ -362,11 +441,47 @@ function backAndForthBalanced(segment: { lat: number; lon: number }[]): boolean 
  * Odd-indexed legs (0,2,4...) should be parallel; even-indexed (1,3,5...) parallel; the two groups ~180° apart.
  */
 function legsAreRoughlyParallel(segment: { lat: number; lon: number }[]): boolean {
-    const { legBearings, reversalIndices } = getLegBearings(segment);
-    if (reversalIndices.length < 2 || legBearings.length < 2) return true;
+    // Use trimmed legs so turn arcs don't pollute the bearing spread.
+    const rawLegs = getLegSegments(segment, 1);
+    if (rawLegs.length < 2) return true;
+    const trimmed = trimLegsToStraightWithGroupDirection(rawLegs);
+    const usable = trimmed
+        .map((leg, i) => {
+            if (leg.length < 2) return null;
+            // Ignore very short legs; they are often turn artifacts and can skew parallelism.
+            let d = 0;
+            for (let k = 0; k < leg.length - 1; k++) {
+                d += distanceMeters(leg[k].lat, leg[k].lon, leg[k + 1].lat, leg[k + 1].lon);
+            }
+            if (d < MIN_LEG_DISTANCE_M) return null;
+            return { b: legMeanBearing(leg), i };
+        })
+        .filter((x): x is { b: number; i: number } => x != null && x.b !== 0);
+    if (usable.length < 2) return true;
 
-    const oddBearings = legBearings.filter((_, i) => i % 2 === 0);
-    const evenBearings = legBearings.filter((_, i) => i % 2 === 1);
+    // Don't rely on leg index parity; if a turn is missed, parity grouping can mix opposite legs.
+    // Instead, cluster bearings into two opposite directions.
+    const allBearings = usable.map((x) => x.b);
+    const clusterTwoOpposite = (bearings: number[]): { a: number[]; b: number[] } => {
+        if (bearings.length === 0) return { a: [], b: [] };
+        let meanA = bearings[0]!;
+        let meanB = (meanA + 180) % 360;
+        let groupA: number[] = [];
+        let groupB: number[] = [];
+        for (let iter = 0; iter < 2; iter++) {
+            groupA = [];
+            groupB = [];
+            for (const brg of bearings) {
+                const dA = bearingDiff(brg, meanA);
+                const dB = bearingDiff(brg, meanB);
+                (dA <= dB ? groupA : groupB).push(brg);
+            }
+            if (groupA.length > 0) meanA = circularMeanDeg(groupA);
+            if (groupB.length > 0) meanB = circularMeanDeg(groupB);
+        }
+        return { a: groupA, b: groupB };
+    };
+    const { a: oddBearings, b: evenBearings } = clusterTwoOpposite(allBearings);
 
     if (oddBearings.length >= 2 && maxSpread(oddBearings) > PARALLEL_TOLERANCE_DEG) return false;
     if (evenBearings.length >= 2 && maxSpread(evenBearings) > PARALLEL_TOLERANCE_DEG) return false;
@@ -379,6 +494,62 @@ function legsAreRoughlyParallel(segment: { lat: number; lon: number }[]): boolea
     }
 
     return true;
+}
+
+function legsAlternateDirections(segment: { lat: number; lon: number }[]): boolean {
+    const rawLegs = getLegSegments(segment, 1);
+    if (rawLegs.length < 4) return true; // need enough legs to say anything meaningful
+    const trimmed = trimLegsToStraightWithGroupDirection(rawLegs);
+
+    const usable = trimmed
+        .map((leg) => {
+            if (leg.length < 2) return null;
+            let d = 0;
+            for (let i = 0; i < leg.length - 1; i++) {
+                d += distanceMeters(leg[i].lat, leg[i].lon, leg[i + 1].lat, leg[i + 1].lon);
+            }
+            if (d < MIN_LEG_DISTANCE_M) return null;
+            return legMeanBearing(leg);
+        })
+        .filter((b): b is number => b != null && b !== 0);
+
+    if (usable.length < 4) return true;
+
+    // Initialize two opposite clusters from the first bearing.
+    let meanA = usable[0]!;
+    let meanB = (meanA + 180) % 360;
+
+    // One refinement pass: assign -> recompute means.
+    let groupA: number[] = [];
+    let groupB: number[] = [];
+    for (let iter = 0; iter < 2; iter++) {
+        groupA = [];
+        groupB = [];
+        for (const b of usable) {
+            const dA = bearingDiff(b, meanA);
+            const dB = bearingDiff(b, meanB);
+            (dA <= dB ? groupA : groupB).push(b);
+        }
+        if (groupA.length > 0) meanA = circularMeanDeg(groupA);
+        if (groupB.length > 0) meanB = circularMeanDeg(groupB);
+    }
+
+    // Label sequence and count adjacent same-direction events.
+    const labels: number[] = usable.map((b) => (bearingDiff(b, meanA) <= bearingDiff(b, meanB) ? 0 : 1));
+    let sameAdj = 0;
+    for (let i = 1; i < labels.length; i++) {
+        if (labels[i] === labels[i - 1]) sameAdj++;
+    }
+    return sameAdj <= MAX_SAME_DIRECTION_ADJACENT;
+}
+
+function lawnMowerPatternFailureReason(segment: { lat: number; lon: number }[]): string | null {
+    // Lawn-mower is simply: back-and-forth alternation + a steady perpendicular sweep.
+    // Those checks are already implemented (on trimmed straight legs) elsewhere; we keep this
+    // helper for clearer failure messages.
+    if (!legsAlternateDirections(segment)) return 'legs do not alternate directions (not back-and-forth)';
+    if (!progressesPerpendicularToLegs(segment)) return 'no steady perpendicular sweep';
+    return null;
 }
 
 /**
@@ -394,6 +565,34 @@ export interface ZigzagPeriod {
     /** When set, this segment was used for leg-length validation (extended window). Use for pass/fail so it matches findZigzagPeriod. */
     segmentForValidation?: { lat: number; lon: number; timestamp: number }[];
     reversals: number;
+}
+
+/**
+ * Validate a found zigzag period. Uses the chosen window for "shape" checks (reversals/parallel/balance)
+ * and uses the optionally-extended window for checks that benefit from extra context (leg consistency/sweep).
+ * Returns a failure reason string, or null if it passes.
+ */
+export function zigzagPeriodFailureReason(
+    period: ZigzagPeriod,
+    minReversals: number = MIN_REVERSALS,
+    stride: number = 1
+): string | null {
+    const seg = stridedSegment(period.segment, stride);
+    if (seg.length < 3) return 'too few points';
+    const count = countZigzagReversals(seg);
+    if (count < minReversals) return `reversals ${count} < ${minReversals}`;
+    if (!backAndForthBalanced(seg)) return 'direction not balanced (not enough back-and-forth)';
+    if (!legsAreRoughlyParallel(seg)) return 'legs not roughly parallel';
+    if (!legsAlternateDirections(seg)) return 'legs do not alternate directions (passes not adjacent)';
+    if (!legsHaveSufficientMedianLength(seg)) return 'legs too short (median pass length too small)';
+    const validateSeg = stridedSegment(period.segmentForValidation ?? period.segment, stride);
+    {
+        const lawn = lawnMowerPatternFailureReason(validateSeg);
+        if (lawn) return `not a lawn-mower pattern (${lawn})`;
+    }
+    if (!legsHaveConsistentLength(validateSeg)) return 'leg lengths too inconsistent (not uniform imaging passes)';
+    if (!progressesPerpendicularToLegs(validateSeg)) return 'legs do not progress perpendicular to their direction (no steady sweep)';
+    return null;
 }
 
 /** Downsample to every stride-th point for bearing computation (makes gradual turns look sharp). */
@@ -436,6 +635,7 @@ export function findZigzagPeriod(
         segmentForValidation: typeof coords;
         reversals: number;
         score: number;
+        endTs: number;
     } | null = null;
 
     for (let i = 0; i < coords.length; i++) {
@@ -451,23 +651,38 @@ export function findZigzagPeriod(
             if (forDetection.length < 3) continue;
 
             const reversals = countZigzagReversals(forDetection);
-            if (reversals < minReversals) continue;
+            // Short windows are more prone to false positives (e.g. a few wiggles on transit).
+            // Require more reversals unless the pattern persists for most of the max window.
+            const requiredReversals =
+                targetDur < maxWindowMs * 0.6 ? Math.max(minReversals, 5) : minReversals;
+            if (reversals < requiredReversals) continue;
             if (!legsAreRoughlyParallel(forDetection)) continue;
             if (!backAndForthBalanced(forDetection)) continue;
             const iExt = Math.max(0, i - LEG_CHECK_EXTEND_POINTS);
             const jExt = Math.min(coords.length - 1, j + LEG_CHECK_EXTEND_POINTS);
             const extendedWindow = coords.slice(iExt, jExt + 1);
-            const forDetectionExtended = stridedSegment(extendedWindow, stride);
+            // Validate using only the portion of the extended window that overlaps the chosen window,
+            // plus a small time pad, so we don't fail due to unrelated transit legs.
+            const tStart = window[0]!.timestamp;
+            const tEnd = window[window.length - 1]!.timestamp;
+            const validationWindow = sliceByTimestamp(extendedWindow, tStart, tEnd);
+            const forDetectionExtended = stridedSegment(validationWindow, stride);
             if (!legsHaveConsistentLength(forDetectionExtended)) continue;
             if (!progressesPerpendicularToLegs(forDetectionExtended)) continue;
 
             const score = computeParallelismScore(forDetection);
+            const endTs = window[window.length - 1]!.timestamp;
+            // Prefer the most recent qualifying zigzag window (latest end timestamp).
+            // Only when windows end at the same time do we fall back to "best geometry" (score/reversals).
             const isBetter =
                 !best ||
-                score > best.score ||
-                (score === best.score && reversals > best.reversals);
+                endTs > best.endTs ||
+                (endTs === best.endTs && (
+                    score > best.score ||
+                    (score === best.score && reversals > best.reversals)
+                ));
             if (isBetter) {
-                best = { segment: window, segmentForValidation: extendedWindow, reversals, score };
+                best = { segment: window, segmentForValidation: validationWindow, reversals, score, endTs };
             }
         }
     }
@@ -492,6 +707,12 @@ export function zigzagFailureReason(
     if (count < minReversals) return `reversals ${count} < ${minReversals}`;
     if (!backAndForthBalanced(seg)) return 'direction not balanced (not enough back-and-forth)';
     if (!legsAreRoughlyParallel(seg)) return 'legs not roughly parallel';
+    if (!legsAlternateDirections(seg)) return 'legs do not alternate directions (passes not adjacent)';
+    if (!legsHaveSufficientMedianLength(seg)) return 'legs too short (median pass length too small)';
+    {
+        const lawn = lawnMowerPatternFailureReason(seg);
+        if (lawn) return `not a lawn-mower pattern (${lawn})`;
+    }
     if (!legsHaveConsistentLength(seg)) return 'leg lengths too inconsistent (not uniform imaging passes)';
     if (!progressesPerpendicularToLegs(seg)) return 'legs do not progress perpendicular to their direction (no steady sweep)';
     return null;

@@ -47,7 +47,15 @@ describe('getAirportDataPhoto', () => {
         (axios.get as any)
             .mockResolvedValueOnce({
                 status: 200,
-                data: { data: [{ image: 'https://airport-data.com/img.jpg', photographer: 'Jane Doe', link: 'https://airport-data.com/aircraft/abc' }] },
+                data: {
+                    data: [
+                        {
+                            image: 'https://airport-data.com/images/aircraft/thumbnails/000/582/582407.jpg',
+                            photographer: 'Jane Doe',
+                            link: 'https://airport-data.com/aircraft/photo/000582407.html',
+                        },
+                    ],
+                },
             })
             .mockResolvedValueOnce({
                 status: 200,
@@ -60,8 +68,11 @@ describe('getAirportDataPhoto', () => {
         expect(photo?.mimeType).toBe('image/jpeg');
         expect(photo?.bytes.length).toBeGreaterThan(0);
         expect(photo?.photographer).toBe('Jane Doe');
-        expect(photo?.link).toBe('https://airport-data.com/aircraft/abc');
+        expect(photo?.link).toBe('https://airport-data.com/aircraft/photo/000582407.html');
         expect((axios.get as any).mock.calls.length).toBe(2);
+
+        // Second request should prefer the hi-res CDN URL derived from the photo id.
+        expect((axios.get as any).mock.calls[1][0]).toBe('https://image.airport-data.com/aircraft/582407.jpg');
     });
 });
 
