@@ -2,6 +2,18 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+type AircraftPhotoMode = 'off' | 'airport-data' | 'jetphotos' | 'both';
+
+function parseAircraftPhotoMode(raw: string | undefined): AircraftPhotoMode {
+    if (!raw || raw === 'true' || raw === '1') return 'airport-data';
+    const v = raw.toLowerCase();
+    if (v === 'false' || v === '0' || v === 'off') return 'off';
+    if (v === 'jetphotos') return 'jetphotos';
+    if (v === 'both') return 'both';
+    if (v === 'airport' || v === 'airport-data') return 'airport-data';
+    return 'airport-data';
+}
+
 export const TOTAL_CHANGE = parseFloat(process.env.TOTAL_CHANGE || '1440');
 /** Max window (ms) for zigzag/imaging and for circling cutoff. Default 40 min. */
 export const TIME_WINDOW = parseInt(process.env.TIME_WINDOW || '2400000');
@@ -22,8 +34,25 @@ export const BLUESKY_DRY_RUN = process.env.BLUESKY_DRY_RUN === 'true' || process
 export const USER_AGENT = process.env.USER_AGENT || 'Watcher in the Sky';
 /** Data directory for both DBs. Default ./data locally; Docker sets /home/node/app/data. Trailing slash stripped. */
 const DATA_DIR = (process.env.DATA_DIR || './data').replace(/\/$/, '');
-/** Whether to fetch aircraft photos from airport-data.com when posting. Default true. */
-export const AIRCRAFT_PHOTO_ENABLED = process.env.AIRCRAFT_PHOTO_ENABLED !== 'false';
+
+/** String mode for aircraft photo provider, controlled via AIRCRAFT_PHOTO_ENABLED for back-compat.
+ *  Allowed values:
+ *  - undefined / 'true' / '1' / 'airport' / 'airport-data' → 'airport-data'
+ *  - 'false' / '0' / 'off' → 'off'
+ *  - 'jetphotos' → 'jetphotos'
+ *  - 'both' → 'both'
+ */
+export const AIRCRAFT_PHOTO_MODE: AircraftPhotoMode = parseAircraftPhotoMode(process.env.AIRCRAFT_PHOTO_ENABLED);
+
+/** Whether any aircraft photo fetching is enabled at all. */
+export const AIRCRAFT_PHOTO_ENABLED = AIRCRAFT_PHOTO_MODE !== 'off';
+
+/** Convenience flags for specific providers. */
+export const AIRCRAFT_PHOTO_USE_AIRPORT_DATA =
+    AIRCRAFT_PHOTO_MODE === 'airport-data' || AIRCRAFT_PHOTO_MODE === 'both';
+export const AIRCRAFT_PHOTO_USE_JETPHOTOS =
+    AIRCRAFT_PHOTO_MODE === 'jetphotos' || AIRCRAFT_PHOTO_MODE === 'both';
+
 /** On-disk cache dir for aircraft photos/misses. */
 export const AIRCRAFT_PHOTO_CACHE_DIR = process.env.AIRCRAFT_PHOTO_CACHE_DIR || (DATA_DIR + '/aircraft_photos');
 /** Optional path to SQLite DB from Mictronics aircraft data (see scripts/create-aircraft-db.ts). Derived from DATA_DIR when unset; set to empty string to disable. */

@@ -7,7 +7,7 @@ import { TAR1090_URL, TOTAL_CHANGE, TIME_WINDOW } from '../constants';
 import { captureScreenshot } from '../screenshot/screenshot';
 import { buildCirclingMessage, buildScreenshotAlt, type ReverseGeoProperties } from '../generation/message';
 import { getRecord as getAircraftInfo } from '../aircraftInfo/aircraftInfo';
-import { getAirportDataPhoto } from '../aircraftPhoto/airportData';
+import { getAircraftPhoto } from '../aircraftPhoto/getAircraftPhoto';
 import { incrementCircling } from '../health/metrics';
 import { formatLocalTime } from '../helpers/dateUtils';
 import * as log from '../log';
@@ -209,7 +209,6 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
 
                 log.success(`Found circling aircraft ${hex}: ${log.link(link)}`);
                 const screenshot_data = await captureScreenshot(hex, screenshotUrl);
-                const photo = await getAirportDataPhoto(hex);
                 // Use registration from API, or last known from our position history, or Mictronics DB
                 const rFromHistory = recentCoords.length > 0
                     ? [...recentCoords].reverse().find((c) => c.r != null && c.r.trim() !== '')?.r ?? null
@@ -252,6 +251,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                     { landmark }
                 );
                 const imageAlt = buildScreenshotAlt(reverseGeoProps, landmark, ac.flight);
+                const photo = await getAircraftPhoto(hex, registration);
                 const images = [
                     {
                         data: screenshot_data,
@@ -262,7 +262,7 @@ export async function detectCirclingAircraft(nextCheckInMs?: number, aircraftDat
                     ...(photo ? [{
                         data: photo.bytes,
                         mimeType: photo.mimeType,
-                        alt: `Photo of aircraft ${registration ?? hex}. Source: Airport-Data.com${photo.photographer ? ` (Photo: ${photo.photographer})` : ''}${photo.link ? ` ${photo.link}` : ''}`.trim(),
+                        alt: `Photo of aircraft ${registration ?? hex}. Source: ${photo.link ? photo.link : 'Aircraft photo provider'}${photo.photographer ? ` (Photo: ${photo.photographer})` : ''}`.trim(),
                     }] : []),
                 ];
                 const success = await postToBluesky(ac, message, images);
