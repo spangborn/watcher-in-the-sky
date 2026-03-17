@@ -27,7 +27,7 @@ function normalizeHex(hex: string): string {
     return hex.replace(/^~/, '').toLowerCase();
 }
 
-function cachePaths(hex: string): { jpg: string; miss: string } {
+function cachePaths(hex: string): { jpg: string; meta: string; miss: string } {
     const key = normalizeHex(hex);
     return {
         jpg: path.join(AIRCRAFT_PHOTO_CACHE_DIR, `${key}.jpg`),

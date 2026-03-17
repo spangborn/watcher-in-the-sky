@@ -29,7 +29,16 @@ export async function detectAircraftFromList(): Promise<void> {
 
             const screenshot_data = await captureScreenshot(hex!, screenshotUrl);
             const message = `${'#' + flight.trim()} was detected in the air.\nView more: ${link}`;
-            await postToBluesky({ flight }, message, screenshot_data);
+            await postToBluesky(
+                { flight },
+                message,
+                [{
+                    data: screenshot_data,
+                    mimeType: 'image/jpeg',
+                    alt: `Screenshot of the flight path of the flight ${flight.trim()}`,
+                    aspectRatio: { width: 1200, height: 800 },
+                }]
+            );
         }
     }
 }
