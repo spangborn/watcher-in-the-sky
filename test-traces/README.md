@@ -7,6 +7,7 @@ Trace JSON files and rendered SVGs for regression testing. When changing the zig
 | Trace | Expected | Notes |
 |-------|----------|--------|
 | `trace_full_a65095.json` | **Pass** (imaging) | True imaging/survey pattern |
+| `trace_full_a6e257_imaging.json` | **Pass** (imaging) | True imaging/survey pattern |
 | `trace_full_a199ef_not_imaging.json` | Fail | Not imaging |
 | `trace_full_ab7d21_not_aerial.json` | Fail | Not aerial pattern |
 | `trace_full_a0e5f2_not.json` | Fail | Not surveying |
