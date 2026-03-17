@@ -46,6 +46,22 @@ function loadTrace(filePath: string): { lat: number; lon: number; timestamp: num
     });
 }
 
+function downsampleByInterval(
+    coords: { lat: number; lon: number; timestamp: number }[],
+    intervalSec: number
+): { lat: number; lon: number; timestamp: number }[] {
+    if (intervalSec <= 0 || coords.length <= 1) return coords;
+    const out: typeof coords = [coords[0]];
+    let lastTs = coords[0].timestamp;
+    for (let i = 1; i < coords.length; i++) {
+        if (coords[i].timestamp - lastTs >= intervalSec * 1000) {
+            out.push(coords[i]);
+            lastTs = coords[i].timestamp;
+        }
+    }
+    return out;
+}
+
 /** Bounds in Web Mercator (meters). */
 function mercatorBounds(points: { lat: number; lon: number }[]): { xMin: number; xMax: number; yMin: number; yMax: number } {
     let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
@@ -118,13 +134,15 @@ function main(): void {
     const windowMin = windowMinArg != null ? parseInt(windowMinArg, 10) : 60;
     const windowMs = windowMin * 60 * 1000;
 
-    const coords = loadTrace(resolved);
+    // Match the bot-like 10s cadence used by the trace harness.
+    const coords = downsampleByInterval(loadTrace(resolved), 10);
     if (coords.length < 2) {
         console.error('Not enough points in trace.');
         process.exit(1);
     }
 
-    const period = findZigzagPeriod(coords, windowMs, undefined, stride);
+    // Use a fixed-length window (same as test-traces README / run-zigzag-on-trace).
+    const period = findZigzagPeriod(coords, windowMs, undefined, stride, windowMs);
     let zigzagSegment = period?.segment ?? null;
     if (zigzagSegment && zigzagSegment.length > 0) {
         const t0 = zigzagSegment[0].timestamp;

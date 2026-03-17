@@ -23,6 +23,21 @@ const LEG_CHECK_EXTEND_POINTS = 30;
 const TURN_WINDOW = 3;
 /** Max bearing deviation (deg) from leg mean to count as still on the straight leg; trim turn portions at each end (works for any direction). */
 const TRIM_LEG_BEARING_DEG = 35;
+/**
+ * Imaging/survey patterns should "march" across the area: the turn points progress steadily
+ * along the axis perpendicular to the parallel legs (in either direction).
+ *
+ * These thresholds are intentionally small vs leg length; we just want to reject stationary
+ * back-and-forth over the same line or oscillation that doesn't cover new swaths.
+ */
+const MIN_PERP_STEP_M = 50;
+const MIN_PERP_SPAN_M = 400;
+/** Minimum separation (m) between adjacent legs to evaluate spacing consistency. */
+const MIN_PERP_SPACING_M = 150;
+/** Max ratio of largest to smallest adjacent leg spacing along perpendicular axis. */
+const MAX_PERP_SPACING_RATIO = 2.5;
+
+const EARTH_RADIUS_M = 6371000;
 
 /**
  * Normalize bearing difference to -180..180.
@@ -41,6 +56,92 @@ function bearingDiff(b1: number, b2: number): number {
     let d = Math.abs(b1 - b2);
     if (d > 180) d = 360 - d;
     return d;
+}
+
+function degToRad(d: number): number {
+    return (d * Math.PI) / 180;
+}
+
+/**
+ * Convert lat/lon to local tangent-plane meters (x east, y north) relative to origin.
+ * Equirectangular approximation is fine for our small windows.
+ */
+function toLocalXYm(
+    p: { lat: number; lon: number },
+    origin: { lat: number; lon: number }
+): { x: number; y: number } {
+    const lat0 = degToRad(origin.lat);
+    const x = degToRad(p.lon - origin.lon) * Math.cos(lat0) * EARTH_RADIUS_M;
+    const y = degToRad(p.lat - origin.lat) * EARTH_RADIUS_M;
+    return { x, y };
+}
+
+/** Unit vector (east,north) from bearing degrees (0=N,90=E). */
+function bearingUnitEN(bearingDeg: number): { ue: number; un: number } {
+    const t = degToRad(bearingDeg);
+    return { ue: Math.sin(t), un: Math.cos(t) };
+}
+
+/**
+ * True if turn points progress monotonically along the axis perpendicular to leg direction.
+ * Accepts either direction (increasing or decreasing), but rejects backtracking above tolerance.
+ */
+function progressesPerpendicularToLegs(segment: { lat: number; lon: number }[]): boolean {
+    const { legBearings, reversalIndices } = getLegBearings(segment);
+    if (reversalIndices.length < 2 || legBearings.length < 2) return true;
+
+    // Determine the leg axis from one group (avoid circular-mean cancellation of opposite headings).
+    const oddBearings = legBearings.filter((_, i) => i % 2 === 0);
+    const evenBearings = legBearings.filter((_, i) => i % 2 === 1);
+    const axisBearing =
+        oddBearings.length > 0 ? circularMeanDeg(oddBearings)
+            : evenBearings.length > 0 ? circularMeanDeg(evenBearings)
+                : legBearings[0];
+
+    const perpBearing = (axisBearing + 90) % 360;
+    const perpUnit = bearingUnitEN(perpBearing);
+
+    // Use the segment midpoint as origin for stability.
+    const origin = segment[Math.floor(segment.length / 2)];
+    const turnPoints = reversalIndices
+        // reversal index is a bearing-array index; the actual "turn" is between point idx and idx+1.
+        // Use idx+1 so lateral steps that happen at the turn are reflected in progression.
+        .map((idx) => segment[Math.max(0, Math.min(idx + 1, segment.length - 1))])
+        .filter(Boolean);
+    if (turnPoints.length < 2) return true;
+
+    const perpCoords = turnPoints.map((p) => {
+        const { x, y } = toLocalXYm(p, origin);
+        return x * perpUnit.ue + y * perpUnit.un;
+    });
+
+    const span = Math.max(...perpCoords) - Math.min(...perpCoords);
+    if (span < MIN_PERP_SPAN_M) return false;
+
+    // Determine intended progression direction from significant steps.
+    const deltas = perpCoords.slice(1).map((v, i) => v - perpCoords[i]);
+    const significant = deltas.filter((d) => Math.abs(d) >= MIN_PERP_STEP_M);
+    if (significant.length === 0) return false;
+
+    const direction = Math.sign(significant.reduce((acc, d) => acc + d, 0));
+    if (direction === 0) return false;
+
+    for (const d of deltas) {
+        if (Math.abs(d) < MIN_PERP_STEP_M) continue;
+        if (Math.sign(d) !== direction) return false;
+    }
+
+    // Spacing consistency: adjacent perpendicular steps should be reasonably uniform.
+    const spacings = deltas
+        .map((d) => Math.abs(d))
+        .filter((d) => d >= MIN_PERP_SPACING_M);
+    if (spacings.length >= 2) {
+        const minS = Math.min(...spacings);
+        const maxS = Math.max(...spacings);
+        if (minS <= 0) return false;
+        if (maxS / minS > MAX_PERP_SPACING_RATIO) return false;
+    }
+    return true;
 }
 
 /** Path distance in meters from point startIdx to point endIdx (inclusive) along segment. */
@@ -297,10 +398,18 @@ export interface ZigzagPeriod {
 
 /** Downsample to every stride-th point for bearing computation (makes gradual turns look sharp). */
 function stridedSegment<T extends { lat: number; lon: number }>(segment: T[], stride: number): T[] {
-    if (stride <= 1) return segment;
-    const out: T[] = [];
-    for (let i = 0; i < segment.length; i += stride) out.push(segment[i]);
-    return out;
+    // Stride is temporarily disabled: we already time-downsample traces (and bot data is ~10s),
+    // and additional striding can erase zig-zag structure and break parallelism checks.
+    // Keep the parameter so we can re-enable later without churn.
+    return segment;
+}
+
+function effectiveStride(stride: number): number {
+    // While striding is disabled, treat all callers as if stride === 1 for index mapping.
+    // This prevents reversal indices (computed on the "strided" segment) from being mis-mapped
+    // into the full segment.
+    void stride;
+    return 1;
 }
 
 /**
@@ -350,6 +459,7 @@ export function findZigzagPeriod(
             const extendedWindow = coords.slice(iExt, jExt + 1);
             const forDetectionExtended = stridedSegment(extendedWindow, stride);
             if (!legsHaveConsistentLength(forDetectionExtended)) continue;
+            if (!progressesPerpendicularToLegs(forDetectionExtended)) continue;
 
             const score = computeParallelismScore(forDetection);
             const isBetter =
@@ -383,6 +493,7 @@ export function zigzagFailureReason(
     if (!backAndForthBalanced(seg)) return 'direction not balanced (not enough back-and-forth)';
     if (!legsAreRoughlyParallel(seg)) return 'legs not roughly parallel';
     if (!legsHaveConsistentLength(seg)) return 'leg lengths too inconsistent (not uniform imaging passes)';
+    if (!progressesPerpendicularToLegs(seg)) return 'legs do not progress perpendicular to their direction (no steady sweep)';
     return null;
 }
 
@@ -468,15 +579,16 @@ export function trimLegsToStraightWithGroupDirection<T extends { lat: number; lo
  * mapped back to full segment so gradual turns are detected and we get 4+ legs for imaging.
  */
 export function getLegSegments<T extends { lat: number; lon: number }>(segment: T[], stride: number = 1): T[][] {
-    const seg = stridedSegment(segment, stride);
+    const s = effectiveStride(stride);
+    const seg = stridedSegment(segment, s);
     const { reversalIndices } = findReversalIndices(seg);
     if (reversalIndices.length === 0) return [segment];
     const legs: T[][] = [];
     let start = 0;
     for (const r of reversalIndices) {
-        const endIdx = stride > 1 ? Math.min(r * stride + 1, segment.length) : r + 1;
+        const endIdx = s > 1 ? Math.min(r * s + 1, segment.length) : r + 1;
         legs.push(segment.slice(start, endIdx));
-        start = stride > 1 ? Math.min(r * stride + 1, segment.length) : r + 1;
+        start = s > 1 ? Math.min(r * s + 1, segment.length) : r + 1;
     }
     if (start <= segment.length - 1) {
         legs.push(segment.slice(start, segment.length));
@@ -489,12 +601,13 @@ export function getLegSegments<T extends { lat: number; lon: number }>(segment: 
  * Use this for centroid so location/links reflect the actual imaging pattern, not approach/exit.
  */
 export function getZigzagSubSegment<T extends { lat: number; lon: number }>(segment: T[], stride: number = 1): T[] {
-    const seg = stridedSegment(segment, stride);
+    const s = effectiveStride(stride);
+    const seg = stridedSegment(segment, s);
     const { firstReversalIdx, lastReversalIdx } = findReversalIndices(seg);
     if (firstReversalIdx === null || lastReversalIdx === null || firstReversalIdx >= lastReversalIdx) {
         return segment;
     }
-    const start = stride > 1 ? firstReversalIdx * stride : firstReversalIdx;
-    const end = stride > 1 ? Math.min(lastReversalIdx * stride + 1, segment.length) : lastReversalIdx + 1;
+    const start = s > 1 ? firstReversalIdx * s : firstReversalIdx;
+    const end = s > 1 ? Math.min(lastReversalIdx * s + 1, segment.length) : lastReversalIdx + 1;
     return segment.slice(start, end);
 }
