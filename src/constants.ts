@@ -72,8 +72,9 @@ export const AIRCRAFT_CACHE_TTL_MS = Math.max(1000, DETECTION_INTERVAL_MS - 2000
 
 /** Set to false to disable circling detection. */
 export const ENABLE_CIRCLING_DETECTION = process.env.ENABLE_CIRCLING_DETECTION !== 'false';
-/** Set to false to disable zig-zag (imaging) detection. */
-export const ENABLE_ZIGZAG_DETECTION = process.env.ENABLE_ZIGZAG_DETECTION !== 'false';
+/** Zig-zag (imaging) detection: opt-in only (set ENABLE_ZIGZAG_DETECTION=true or 1). Default off while tuning. */
+export const ENABLE_ZIGZAG_DETECTION =
+    process.env.ENABLE_ZIGZAG_DETECTION === 'true' || process.env.ENABLE_ZIGZAG_DETECTION === '1';
 
 /** Port for the health HTTP server. Default 3000. */
 export const HEALTH_PORT = parseInt(process.env.HEALTH_PORT || process.env.PORT || '3000', 10);

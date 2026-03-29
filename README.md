@@ -4,7 +4,7 @@ Inspired by [Advisory Circular](https://gitlab.com/jjwiseman/advisory-circular) 
 
 John's original code was written in Clojure, with a current rewrite in Rust. I decided to build mine in TypeScript for fun.
 
-The bot runs two detection jobs: (1) **circling** — aircraft flying circular patterns; (2) **zig-zag (imaging)** — back-and-forth survey/imaging patterns. It uses the Airplanes.live API (or a network tar1090 aircraft.json) and posts to Bluesky with a screenshot of the flight path.
+The bot runs **circling** detection by default (aircraft flying circular patterns). **Zig-zag (imaging)** detection is optional and **off by default**; set `ENABLE_ZIGZAG_DETECTION=true` when you want survey/imaging posts. It uses the Airplanes.live API (or a network tar1090 aircraft.json) and posts to Bluesky with a screenshot of the flight path.
 
 Data is sourced from:
 
@@ -18,13 +18,13 @@ The name "[Watcher in the Sky](https://www.youtube.com/watch?v=0mGr5bMItQY)" is 
 
 ## How it works
 
-Watcher polls the API for positions, stores them in SQLite, and runs two detection jobs each cycle. **Circling** detection finds aircraft whose heading change over a time window indicates a circular pattern. **Zig-zag (imaging)** detection finds aircraft with alternating left/right turns typical of survey or aerial imaging. When a pattern is detected (and not near an airport, and not posted in the last 30 minutes), it takes a screenshot and posts to Bluesky with reverse-geocoded location.
+Watcher polls the API for positions, stores them in SQLite, and runs detection each cycle. **Circling** finds aircraft whose heading change over a time window indicates a circular pattern. **Zig-zag (imaging)** (when enabled) finds alternating left/right turns typical of survey or aerial imaging. When a pattern is detected (and not near an airport, and not posted in the last 30 minutes), it takes a screenshot and posts to Bluesky with reverse-geocoded location.
 
 Screenshots use Puppeteer’s bundled Chrome. Install it once with `npm run install:browser` (or `npx puppeteer browsers install chrome`) so the app can capture flight-path images; otherwise posts are text-only.
 
 To test without posting, set `BLUESKY_DEBUG=true` or `BLUESKY_DRY_RUN=true` in `.env`; the app will print each message to the terminal instead of posting to Bluesky. Leave both unset (or false) to post for real. `npm run dev` runs with debug mode on (no posting) by default.
 
-You can turn detection jobs on or off in `.env`: set `ENABLE_CIRCLING_DETECTION=false` or `ENABLE_ZIGZAG_DETECTION=false` to disable circling or zig-zag (imaging) detection. Both default to enabled.
+In `.env`, set `ENABLE_CIRCLING_DETECTION=false` to disable circling (circling defaults to **on**). Set `ENABLE_ZIGZAG_DETECTION=true` or `1` to enable zig-zag (imaging); it defaults to **off**.
 
 Another WIP job looks for specific aircraft and will post about them when they're seen in the area.
 
